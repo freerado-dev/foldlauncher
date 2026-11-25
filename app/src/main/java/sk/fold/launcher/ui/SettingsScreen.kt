@@ -211,15 +211,21 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                 Group {
                     Text(
                         "Aktuálne: ${if (screen == Screen.COVER) "vonkajší" else "vnútorný"} displej. Každý displej má vlastné rozloženie. " +
-                            "Bunky sú štvorcové – počet riadkov sa dopočíta podľa výšky displeja. Pri zmene hustoty sa prvky prepočítajú pomerne.",
+                            "Mriežka vyplní celú výšku plochy. Viac riadkov = lepšie využitie výšky. Pri zmene hustoty sa prvky prepočítajú pomerne.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
                     )
-                    SliderRow("Vonkajší displej – stĺpce", cover.cols.toFloat(), 3f..16f, 12, { "${it.roundToInt()} (riadkov ${cover.rows})" }) { v ->
-                        Store.editLayout(Screen.COVER) { it.rescale(v.roundToInt(), (it.rows * v / it.cols).roundToInt().coerceAtLeast(1)) }
+                    SliderRow("Vonkajší displej – stĺpce", cover.cols.toFloat(), 3f..16f, 12, { "${it.roundToInt()}" }) { v ->
+                        Store.editLayout(Screen.COVER) { it.rescale(v.roundToInt(), it.rows) }
                     }
-                    SliderRow("Vnútorný displej – stĺpce", inner.cols.toFloat(), 4f..28f, 23, { "${it.roundToInt()} (riadkov ${inner.rows})" }) { v ->
-                        Store.editLayout(Screen.INNER) { it.rescale(v.roundToInt(), (it.rows * v / it.cols).roundToInt().coerceAtLeast(1)) }
+                    SliderRow("Vonkajší displej – riadky", cover.rows.toFloat(), 4f..30f, 25, { "${it.roundToInt()}" }) { v ->
+                        Store.editLayout(Screen.COVER) { it.rescale(it.cols, v.roundToInt()) }
+                    }
+                    SliderRow("Vnútorný displej – stĺpce", inner.cols.toFloat(), 4f..28f, 23, { "${it.roundToInt()}" }) { v ->
+                        Store.editLayout(Screen.INNER) { it.rescale(v.roundToInt(), it.rows) }
+                    }
+                    SliderRow("Vnútorný displej – riadky", inner.rows.toFloat(), 4f..28f, 23, { "${it.roundToInt()}" }) { v ->
+                        Store.editLayout(Screen.INNER) { it.rescale(it.cols, v.roundToInt()) }
                     }
                     SwitchRow("Zobraziť mriežku pri úpravách", checked = s.showGrid) { v -> edit { it.copy(showGrid = v) } }
                     SwitchRow("Zamknúť rozloženie", "Zabráni náhodnému presunu", s.lockLayout) { v -> edit { it.copy(lockLayout = v) } }

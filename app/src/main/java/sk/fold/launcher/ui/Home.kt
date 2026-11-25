@@ -92,7 +92,6 @@ import sk.fold.launcher.data.Screen
 import sk.fold.launcher.data.ScreenLayout
 import sk.fold.launcher.data.Settings
 import sk.fold.launcher.data.Store
-import kotlin.math.floor
 import kotlin.math.roundToInt
 
 @Composable
@@ -210,23 +209,19 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
     val haptic = LocalHapticFeedback.current
     val items = layout.items.filter { it.page == page }
     val margin = if (screen == Screen.COVER) 14.dp else 6.dp
-    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = margin, vertical = 4.dp)) {
-        // Štvorcové bunky: šírku určujú stĺpce, počet riadkov sa dopočíta podľa výšky.
+    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = margin, vertical = 2.dp)) {
+        // Bunky podľa zvoleného počtu stĺpcov a riadkov – plocha využije celú výšku.
         val pageW = constraints.maxWidth.toFloat()
         val pageH = constraints.maxHeight.toFloat()
-        val cell = pageW / layout.cols
-        val fittedRows = floor(pageH / cell).toInt().coerceAtLeast(1)
-        LaunchedEffect(fittedRows, layout.cols, screen) {
-            if (Store.layout(screen).value.rows != fittedRows) Store.editLayout(screen) { it.withRows(fittedRows) }
-        }
-        val cw = cell
-        val ch = cell
-        val gridH = layout.rows * cell
-        val top = ((pageH - gridH) / 2f).coerceAtLeast(0f)
-        val cellDp = with(density) { cell.toDp() }
-        LaunchedEffect(cellDp, screen) {
-            ui.cellW = cellDp.value; ui.cellH = cellDp.value
-            Store.cellDp[screen] = cellDp.value to cellDp.value
+        val cw = pageW / layout.cols
+        val ch = pageH / layout.rows
+        val gridH = pageH
+        val top = 0f
+        val cwDp = with(density) { cw.toDp() }
+        val chDp = with(density) { ch.toDp() }
+        LaunchedEffect(cwDp, chDp, screen) {
+            ui.cellW = cwDp.value; ui.cellH = chDp.value
+            Store.cellDp[screen] = cwDp.value to chDp.value
         }
 
         var dragId by remember { mutableStateOf<Long?>(null) }

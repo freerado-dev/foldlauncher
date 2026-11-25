@@ -304,8 +304,8 @@ private fun FavoritesView(ui: LauncherUi, s: Settings, hDp: Dp) {
     }
     val iconSize = s.favIconSize.dp
     // Rozmery ako v Niagare: ikona ~28 dp, riadok ~44 dp, názov ~20 sp.
-    val rowH = iconSize + 16.dp
-    val titleSize = (s.favIconSize * 0.7f).coerceIn(15f, 26f).sp
+    val rowH = iconSize + 24.dp
+    val titleSize = (s.favIconSize * 0.6f).coerceIn(13f, 24f).sp
     val subSize = (s.favIconSize * 0.42f).coerceIn(11f, 15f).sp
     val needScroll = rowH * entries.size > hDp
     Column(
