@@ -41,10 +41,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.unit.Velocity
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shadow
@@ -322,33 +322,41 @@ private fun FavoritesView(ui: LauncherUi, s: Settings, hDp: Dp) {
     val subSize = (s.favIconSize * 0.42f).coerceIn(11f, 15f).sp
     val needScroll = rowH * entries.size > hDp
     // Keď je zoznam navrchu, potiahnutie nadol vyvolá gesto plochy (horná lišta), ako všade inde.
+    // Sledujeme priamo prst (pred zoznamom), nie signály posúvania – tie sa po švihnutí vedia zaseknúť.
     val swipeDown by rememberUpdatedState(s.swipeDown)
-    val threshold = with(LocalDensity.current) { 56.dp.toPx() }
-    val pullDown = remember(threshold) {
-        object : NestedScrollConnection {
-            var acc = 0f
-            var fired = false
-            var flinging = false
-            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (!flinging && available.y > 0f) {
-                    acc += available.y
-                    if (!fired && acc > threshold) { fired = true; ui.gesture(swipeDown) }
-                } else if (consumed.y != 0f) acc = 0f
-                return Offset.Zero
-            }
-            override suspend fun onPreFling(available: Velocity): Velocity {
-                flinging = true; acc = 0f; fired = false
-                return Velocity.Zero
-            }
-            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                flinging = false
-                return Velocity.Zero
+    val scroll = rememberScrollState()
+    val pullDown = Modifier.pointerInput(Unit) {
+        val threshold = 56.dp.toPx()
+        val slop = viewConfiguration.touchSlop
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            if (scroll.value > 0) return@awaitEachGesture
+            while (true) {
+                val ev = awaitPointerEvent(PointerEventPass.Initial)
+                val c = ev.changes.firstOrNull { it.id == down.id } ?: break
+                if (!c.pressed) break
+                val dy = c.position.y - down.position.y
+                val dx = c.position.x - down.position.x
+                if (dy < -slop) break                                   // nahor – posúva zoznam
+                if (kotlin.math.abs(dx) > slop * 2 && kotlin.math.abs(dx) > dy) break // vodorovne – stránky
+                if (dy > threshold && scroll.value == 0) {
+                    ui.gesture(swipeDown)
+                    // zvyšok gesta už nepatrí zoznamu ani ploche
+                    c.consume()
+                    while (true) {
+                        val e2 = awaitPointerEvent(PointerEventPass.Initial)
+                        val c2 = e2.changes.firstOrNull { it.id == down.id } ?: break
+                        c2.consume()
+                        if (!c2.pressed) break
+                    }
+                    break
+                }
             }
         }
     }
     Column(
         Modifier.fillMaxSize().then(
-            if (needScroll) Modifier.nestedScroll(pullDown).verticalScroll(rememberScrollState()) else Modifier
+            if (needScroll) pullDown.verticalScroll(scroll) else pullDown
         ),
         verticalArrangement = if (needScroll) Arrangement.Top else Arrangement.Center,
     ) {
