@@ -23,6 +23,14 @@ enum class DrawerStyle(val label: String) { LIST("Zoznam"), GRID("Mriežka") }
 
 enum class ClockStyle(val label: String) { LARGE("Veľké"), STACKED("Pod sebou"), MINIMAL("Malé") }
 
+enum class PageEffect(val label: String) { SLIDE("Posun"), FADE("Prelínanie"), ZOOM("Zoom"), CUBE("Kocka") }
+
+enum class AnimSpeed(val label: String, val stiffness: Float) {
+    SLOW("Pomalé", 120f), NORMAL("Normálne", 300f), FAST("Rýchle", 700f),
+}
+
+enum class DrawerSort(val label: String) { ALPHA("Abecedne"), USAGE("Najpoužívanejšie"), INSTALL("Najnovšie") }
+
 val ACCENTS: List<Long> = listOf(
     0xFF0A84FF, 0xFF30D158, 0xFFFF9F0A, 0xFFFF375F,
     0xFFBF5AF2, 0xFF64D2FF, 0xFFFFD60A, 0xFFAC8E68,
@@ -61,4 +69,14 @@ data class Settings(
     val hidden: Set<String> = emptySet(),
     val renames: Map<String, String> = emptyMap(),
     val initialized: Boolean = false,
+    val pageEffect: PageEffect = PageEffect.SLIDE,
+    val showPageDots: Boolean = true,
+    val autoAddApps: Boolean = false,
+    val lockPortrait: Boolean = false,
+    val hideNavBar: Boolean = false,
+    val haptics: Boolean = true,
+    val animSpeed: AnimSpeed = AnimSpeed.NORMAL,
+    val drawerSort: DrawerSort = DrawerSort.ALPHA,
+    val showRecent: Boolean = true,
+    val showWork: Boolean = true,
 )

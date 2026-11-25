@@ -71,3 +71,8 @@ fun FoldTheme(s: Settings, content: @Composable () -> Unit) {
         MaterialTheme(colorScheme = scheme, typography = typographyFor(ff), content = content)
     }
 }
+
+/** Haptická odozva podľa nastavenia. */
+fun buzz(h: androidx.compose.ui.hapticfeedback.HapticFeedback, t: androidx.compose.ui.hapticfeedback.HapticFeedbackType) {
+    if (sk.fold.launcher.data.Store.settings.value.haptics) h.performHapticFeedback(t)
+}

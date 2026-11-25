@@ -28,10 +28,28 @@ object Store {
 
     fun newId(): Long = ids.incrementAndGet()
 
+    /** Počet spustení a naposledy spustené aplikácie (pre triedenie a riadok „Naposledy“). */
+    val usage = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val recent = MutableStateFlow<List<String>>(emptyList())
+
+    @Synchronized
+    fun recordLaunch(key: String) {
+        usage.value = usage.value + (key to ((usage.value[key] ?: 0) + 1))
+        recent.value = (listOf(key) + recent.value.filter { it != key }).take(12)
+        sp.edit()
+            .putString("usage", JSONObject().apply { usage.value.forEach { (k, v) -> put(k, v) } }.toString())
+            .putString("recent", JSONArray(recent.value).toString())
+            .apply()
+    }
+
     fun init(ctx: Context) {
         sp = ctx.getSharedPreferences("launcher", Context.MODE_PRIVATE)
         sp.getString("settings", null)?.let { s ->
             runCatching { settings.value = settingsFromJson(JSONObject(s)) }
+        }
+        runCatching {
+            sp.getString("usage", null)?.let { j -> val o = JSONObject(j); usage.value = o.keys().asSequence().associateWith { o.getInt(it) } }
+            sp.getString("recent", null)?.let { j -> val a = JSONArray(j); recent.value = List(a.length()) { a.getString(it) } }
         }
         for (s in Screen.entries) sp.getString("layout_${s.name}", null)?.let { j ->
             runCatching {
@@ -97,6 +115,10 @@ object Store {
     fun addApp(s: Screen, key: String, page: Int = lastPage): Int {
         val (w, h) = appSpan(s)
         return add(s, HomeItem(newId(), ItemType.APP, page, 0, 0, w, h, app = key), page)
+    }
+
+    fun resetSettings() = editSettings {
+        Settings(initialized = true, favorites = it.favorites, hidden = it.hidden, renames = it.renames)
     }
 
     fun ensureDefaults(favs: List<String>) {
@@ -222,6 +244,10 @@ object Store {
         put("hidden", JSONArray(s.hidden.toList()))
         put("renames", JSONObject().apply { s.renames.forEach { (k, v) -> put(k, v) } })
         put("initialized", s.initialized)
+        put("pageEffect", s.pageEffect.name); put("showPageDots", s.showPageDots); put("autoAddApps", s.autoAddApps)
+        put("lockPortrait", s.lockPortrait); put("hideNavBar", s.hideNavBar); put("haptics", s.haptics)
+        put("animSpeed", s.animSpeed.name); put("drawerSort", s.drawerSort.name)
+        put("showRecent", s.showRecent); put("showWork", s.showWork)
     }
 
     private fun settingsFromJson(o: JSONObject): Settings {
@@ -261,6 +287,16 @@ object Store {
             hidden = o.optJSONArray("hidden")?.let { a -> List(a.length()) { a.getString(it) }.toSet() } ?: emptySet(),
             renames = ren?.keys()?.asSequence()?.associateWith { ren.getString(it) } ?: emptyMap(),
             initialized = o.optBoolean("initialized", false),
+            pageEffect = en(o.str("pageEffect"), d.pageEffect),
+            showPageDots = o.optBoolean("showPageDots", d.showPageDots),
+            autoAddApps = o.optBoolean("autoAddApps", d.autoAddApps),
+            lockPortrait = o.optBoolean("lockPortrait", d.lockPortrait),
+            hideNavBar = o.optBoolean("hideNavBar", d.hideNavBar),
+            haptics = o.optBoolean("haptics", d.haptics),
+            animSpeed = en(o.str("animSpeed"), d.animSpeed),
+            drawerSort = en(o.str("drawerSort"), d.drawerSort),
+            showRecent = o.optBoolean("showRecent", d.showRecent),
+            showWork = o.optBoolean("showWork", d.showWork),
         )
     }
 }

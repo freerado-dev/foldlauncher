@@ -80,7 +80,7 @@ class LauncherWidgetView(ctx: Context) : AppWidgetHostView(ctx) {
         if (isAttachedToWindow && !swiped) {
             longPressed = true
             startRawX = lastRawX; startRawY = lastRawY
-            performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            if (Store.settings.value.haptics) performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
             onLongPress?.invoke()
         }
     }

@@ -28,6 +28,7 @@ class AppInfo(
     val serial: Long,
     val work: Boolean,
     val info: LauncherActivityInfo,
+    val installed: Long = 0,
 ) {
     val pkg: String get() = component.packageName
 }
@@ -60,7 +61,16 @@ object Apps {
                 reload()
                 if (packageName != null && user == Process.myUserHandle()) Store.removePackage(packageName)
             }
-            override fun onPackageAdded(packageName: String?, user: UserHandle?) = reload()
+            override fun onPackageAdded(packageName: String?, user: UserHandle?) {
+                reload {
+                    // Nová aplikácia sa môže automaticky pridať na plochu oboch displejov.
+                    if (Store.settings.value.autoAddApps && packageName != null) {
+                        list.value.filter { it.pkg == packageName && it.user == user }.forEach { a ->
+                            for (s in Screen.entries) Store.addApp(s, a.key, 0)
+                        }
+                    }
+                }
+            }
             override fun onPackageChanged(packageName: String?, user: UserHandle?) {
                 IconCache.clear(); reload()
             }
@@ -70,26 +80,33 @@ object Apps {
         reload()
     }
 
-    fun reload() = exec.execute {
+    fun reload(after: (() -> Unit)? = null) = exec.execute {
         val out = ArrayList<AppInfo>()
         val me = Process.myUserHandle()
+        val pm = ctx.packageManager
+        val installTimes = HashMap<String, Long>()
         for (user in um.userProfiles) {
             val serial = um.getSerialNumberForUser(user)
             val acts = runCatching { la.getActivityList(null, user) }.getOrNull() ?: continue
             for (i in acts) {
                 if (i.componentName.packageName == ctx.packageName) continue
-                out += AppInfo(key(i.componentName, serial), i.label?.toString() ?: i.componentName.packageName,
-                    i.componentName, user, serial, user != me, i)
+                val pkg = i.componentName.packageName
+                val inst = installTimes.getOrPut(pkg) {
+                    runCatching { pm.getPackageInfo(pkg, 0).firstInstallTime }.getOrDefault(0L)
+                }
+                out += AppInfo(key(i.componentName, serial), i.label?.toString() ?: pkg,
+                    i.componentName, user, serial, user != me, i, inst)
             }
         }
         list.value = out
         if (!Store.settings.value.initialized) Store.ensureDefaults(defaultFavorites())
+        runCatching { after?.invoke() }
     }
 
     fun find(key: String?): AppInfo? = key?.let { k -> list.value.firstOrNull { it.key == k } }
 
     fun launch(c: Context, a: AppInfo, bounds: Rect? = null) {
-        runCatching { la.startMainActivity(a.component, a.user, bounds, null) }
+        runCatching { la.startMainActivity(a.component, a.user, bounds, null); Store.recordLaunch(a.key) }
             .onFailure { Toast.makeText(c, "Aplikáciu sa nepodarilo spustiť", Toast.LENGTH_SHORT).show() }
     }
 

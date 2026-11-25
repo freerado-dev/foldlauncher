@@ -84,6 +84,7 @@ import androidx.compose.ui.zIndex
 import sk.fold.launcher.data.Apps
 import sk.fold.launcher.data.Cell
 import sk.fold.launcher.data.GestureAction
+import sk.fold.launcher.data.PageEffect
 import sk.fold.launcher.data.HomeItem
 import sk.fold.launcher.data.ItemType
 import sk.fold.launcher.data.Screen
@@ -148,7 +149,7 @@ fun HomeScreen(ui: LauncherUi, screen: Screen, layout: ScreenLayout, s: Settings
         LaunchedEffect(scale) { ui.homeScale = scale }
         HorizontalPager(
             state = pager,
-            modifier = Modifier.fillMaxSize().padding(bottom = if (layout.pages > 1) 16.dp else 0.dp)
+            modifier = Modifier.fillMaxSize().padding(bottom = if (layout.pages > 1 && s.showPageDots) 16.dp else 0.dp)
                 .graphicsLayer {
                     scaleX = scale; scaleY = scale
                     transformOrigin = TransformOrigin(0.5f, 0.42f)
@@ -156,14 +157,35 @@ fun HomeScreen(ui: LauncherUi, screen: Screen, layout: ScreenLayout, s: Settings
             userScrollEnabled = !dragging,
             beyondViewportPageCount = 1,
         ) { page ->
-            HomePage(ui, screen, layout, page, s) { dragging = it }
+            val effect = if (ui.editMode) PageEffect.SLIDE else s.pageEffect
+            Box(Modifier.fillMaxSize().graphicsLayer {
+                val o = (pager.currentPage - page) + pager.currentPageOffsetFraction
+                val a = kotlin.math.abs(o).coerceIn(0f, 1f)
+                when (effect) {
+                    PageEffect.SLIDE -> {}
+                    PageEffect.FADE -> { translationX = o * size.width; alpha = 1f - a }
+                    PageEffect.ZOOM -> { val sc = 1f - 0.18f * a; scaleX = sc; scaleY = sc; alpha = 1f - 0.6f * a }
+                    PageEffect.CUBE -> {
+                        cameraDistance = 14f * density
+                        transformOrigin = TransformOrigin(if (o > 0) 1f else 0f, 0.5f)
+                        rotationY = -90f * o.coerceIn(-1f, 1f)
+                    }
+                }
+            }) {
+                HomePage(ui, screen, layout, page, s) { dragging = it }
+            }
         }
-        if (layout.pages > 1) Box(Modifier.align(Alignment.BottomCenter)) { PageDots(layout.pages, pager.currentPage) }
+        if (layout.pages > 1 && s.showPageDots) Box(Modifier.align(Alignment.BottomCenter)) { PageDots(layout.pages, pager.currentPage) }
         if (ui.editMode) {
             Box(Modifier.align(Alignment.TopCenter)) { SelectionBar(ui, screen, layout, s) }
             Box(Modifier.align(Alignment.BottomCenter)) { EditToolbar(ui, layout) }
         }
     }
+}
+
+@Composable
+private fun HomeMenuItem(text: String, icon: ImageVector, onClick: () -> Unit) {
+    DropdownMenuItem(text = { Text(text) }, leadingIcon = { Icon(icon, null) }, onClick = onClick)
 }
 
 @Composable
@@ -199,21 +221,38 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
         var dragId by remember { mutableStateOf<Long?>(null) }
         var dragOffset by remember { mutableStateOf(Offset.Zero) }
         var resize by remember { mutableStateOf<Cell?>(null) }
+        var pressMenu by remember { mutableStateOf<Offset?>(null) }
         val sUp by rememberUpdatedState(s)
 
         // Pozadie: dvojité ťuknutie, dlhé podržanie → úpravy, ťuknutie v úpravách zruší výber.
         Box(Modifier.fillMaxSize().pointerInput(Unit) {
             detectTapGestures(
                 onDoubleTap = { if (!ui.editMode) ui.gesture(sUp.doubleTap) },
-                onLongPress = {
+                onLongPress = { pos ->
                     if (!ui.editMode) {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        ui.startEdit()
+                        buzz(haptic, HapticFeedbackType.LongPress)
+                        pressMenu = pos
                     }
                 },
                 onTap = { if (ui.editMode) ui.selectedId = null },
             )
         })
+
+        // Menu po podržaní prázdneho miesta na ploche.
+        pressMenu?.let { pos ->
+            Box(Modifier.offset { IntOffset(pos.x.roundToInt(), pos.y.roundToInt()) }.size(1.dp)) {
+                DropdownMenu(expanded = true, onDismissRequest = { pressMenu = null }) {
+                    HomeMenuItem("Upraviť plochu", Icons.Filled.Edit) { pressMenu = null; ui.startEdit() }
+                    HomeMenuItem("Pridať widget", Icons.Filled.Widgets) { pressMenu = null; ui.sheet = Sheet.Widgets }
+                    HomeMenuItem("Pridať aplikácie", Icons.Filled.Apps) { pressMenu = null; ui.sheet = Sheet.AddApps }
+                    HomeMenuItem("Tapeta", Icons.Filled.Wallpaper) {
+                        pressMenu = null
+                        runCatching { ui.activity.startActivity(Intent.createChooser(Intent(Intent.ACTION_SET_WALLPAPER), "Tapeta")) }
+                    }
+                    HomeMenuItem("Nastavenia launchera", Icons.Filled.Settings) { pressMenu = null; ui.sheet = Sheet.Settings }
+                }
+            }
+        }
 
         if (ui.editMode && s.showGrid) {
             Canvas(Modifier.fillMaxSize()) {
@@ -270,7 +309,7 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
                             if (it2 != null) {
                                 val t = targetOf(it2)
                                 if (cur.isFree(page, t, it2.id)) Store.editLayout(screen) { l -> l.update(it2.id) { x -> x.at(t) } }
-                                else haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                else buzz(haptic, HapticFeedbackType.LongPress)
                             }
                         }
                         dragId = null; dragOffset = Offset.Zero; onDragging(false)
@@ -300,14 +339,14 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
                                 Edge.BOTTOM -> st.copy(h = (st.h + dy).coerceIn(1, layout.rows - st.y))
                                 Edge.CORNER -> st.copy(w = (st.w + dx).coerceIn(1, layout.cols - st.x), h = (st.h + dy).coerceIn(1, layout.rows - st.y))
                             }
-                            if (n != resize) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            if (n != resize) buzz(haptic, HapticFeedbackType.TextHandleMove)
                             resize = n
                         },
                         onEnd = {
                             val n = resize
                             if (n != null && n != sel.cell) {
                                 if (Store.layout(screen).value.isFree(page, n, sel.id)) Store.editLayout(screen) { l -> l.update(sel.id) { it.at(n) } }
-                                else haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                else buzz(haptic, HapticFeedbackType.LongPress)
                             }
                             resize = null; onDragging(false)
                         },
@@ -392,7 +431,7 @@ private fun ItemFrame(
                     onSelect = { ui.selectedId = itemNow.id },
                     onTap = { ui.tap(itemNow) },
                     onLongPress = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        buzz(haptic, HapticFeedbackType.LongPress)
                         menu = true
                     },
                     onDragStart = {

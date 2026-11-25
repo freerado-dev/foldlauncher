@@ -25,7 +25,6 @@
             android:clearTaskOnLaunch="true"
             android:stateNotNeeded="true"
             android:resumeWhilePausing="true"
-            android:excludeFromRecents="true"
             android:taskAffinity=""
             android:windowSoftInputMode="adjustResize"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|density|uiMode|fontScale">

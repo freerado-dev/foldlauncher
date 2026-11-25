@@ -1,6 +1,25 @@
 package sk.fold.launcher.ui
 
+import android.content.pm.ActivityInfo
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.sp
+import sk.fold.launcher.App
+import java.io.File
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -13,6 +32,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,6 +51,8 @@ fun LauncherRoot(ui: LauncherUi) {
     val dark = LocalDark.current
     // Musí byť zaregistrovaný ako prvý, aby mali prednosť vnorené BackHandlery (nastavenia).
     BackHandler { ui.back() }
+    val scope = rememberCoroutineScope()
+    SideEffect { ui.scope = scope }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val screen = if (maxWidth >= 600.dp) Screen.INNER else Screen.COVER
@@ -73,6 +95,8 @@ fun LauncherRoot(ui: LauncherUi) {
         }
 
         SheetHost(ui, screen, s)
+        CrashReport()
+        DefaultLauncherPrompt(ui)
     }
 
 
@@ -84,9 +108,51 @@ fun LauncherRoot(ui: LauncherUi) {
         val lightBars = overlay && !dark
         c.isAppearanceLightStatusBars = lightBars
         c.isAppearanceLightNavigationBars = lightBars
-        if (s.hideStatusBar && !overlay) {
-            c.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            c.hide(WindowInsetsCompat.Type.statusBars())
-        } else c.show(WindowInsetsCompat.Type.statusBars())
+        c.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        if (s.hideStatusBar && !overlay) c.hide(WindowInsetsCompat.Type.statusBars())
+        else c.show(WindowInsetsCompat.Type.statusBars())
+        if (s.hideNavBar && !overlay) c.hide(WindowInsetsCompat.Type.navigationBars())
+        else c.show(WindowInsetsCompat.Type.navigationBars())
+        val want = if (s.lockPortrait) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        if (ui.activity.requestedOrientation != want) ui.activity.requestedOrientation = want
     }
+}
+
+/** Keď launcher nie je predvolený, raz za spustenie ponúkne jeho nastavenie (inak ho Domov nezobrazí). */
+@Composable
+private fun DefaultLauncherPrompt(ui: LauncherUi) {
+    var asked by remember { mutableStateOf(false) }
+    val tick = ui.resumeTick
+    val isDefault = remember(tick) { ui.activity.isDefaultLauncher() }
+    if (isDefault || asked) return
+    AlertDialog(
+        onDismissRequest = { asked = true },
+        title = { Text("Nastaviť Fold Launcher ako domovskú obrazovku?") },
+        text = { Text("Kým nie je predvolený, tlačidlo Domov ho neotvorí a systém ho môže kedykoľvek zavrieť.") },
+        confirmButton = { TextButton(onClick = { asked = true; ui.activity.requestDefaultLauncher() }) { Text("Nastaviť") } },
+        dismissButton = { TextButton(onClick = { asked = true }) { Text("Teraz nie") } },
+    )
+}
+
+/** Ak launcher naposledy spadol, ukáže výpis chyby, aby sa dal poslať a opraviť. */
+@Composable
+private fun CrashReport() {
+    val ctx = LocalContext.current
+    val file = remember { File(ctx.filesDir, App.CRASH_FILE) }
+    var text by remember { mutableStateOf(runCatching { if (file.exists()) file.readText() else null }.getOrNull()) }
+    val clip = LocalClipboardManager.current
+    val t = text ?: return
+    fun done() { runCatching { file.delete() }; text = null }
+    AlertDialog(
+        onDismissRequest = { done() },
+        title = { Text("Launcher naposledy spadol") },
+        text = {
+            Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                Text("Skopíruj výpis a pošli mi ho, opravím to.", style = MaterialTheme.typography.bodyMedium)
+                Text(t.take(6000), fontSize = 10.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.padding(top = 8.dp))
+            }
+        },
+        confirmButton = { TextButton(onClick = { clip.setText(AnnotatedString(t)); done() }) { Text("Kopírovať") } },
+        dismissButton = { TextButton(onClick = { done() }) { Text("Zavrieť") } },
+    )
 }

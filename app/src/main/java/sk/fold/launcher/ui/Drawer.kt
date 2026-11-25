@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -86,7 +87,9 @@ import kotlinx.coroutines.launch
 import sk.fold.launcher.data.AppInfo
 import sk.fold.launcher.data.Apps
 import sk.fold.launcher.data.Badges
+import sk.fold.launcher.data.DrawerSort
 import sk.fold.launcher.data.DrawerStyle
+import sk.fold.launcher.data.Store
 import sk.fold.launcher.data.Settings
 import sk.fold.launcher.data.labelOf
 import sk.fold.launcher.data.letterOf
@@ -107,11 +110,21 @@ fun AppDrawer(ui: LauncherUi, s: Settings) {
     val grid = rememberLazyGridState()
     val density = LocalDensity.current
 
-    val all = remember(apps, s.hidden, s.renames) {
+    val usage by Store.usage.collectAsState()
+    val recentKeys by Store.recent.collectAsState()
+    val all = remember(apps, s.hidden, s.renames, s.showWork, s.drawerSort, usage) {
         val coll = Collator.getInstance()
-        apps.filter { it.key !in s.hidden }
+        val base = apps.filter { it.key !in s.hidden && (s.showWork || !it.work) }
             .map { a -> labelOf(a, s).let { Entry(a, it, letterOf(it)) } }
             .sortedWith(compareBy(coll) { it.label })
+        when (s.drawerSort) {
+            DrawerSort.ALPHA -> base
+            DrawerSort.USAGE -> base.sortedByDescending { usage[it.app.key] ?: 0 }
+            DrawerSort.INSTALL -> base.sortedByDescending { it.app.installed }
+        }
+    }
+    val recentApps = remember(apps, recentKeys, s.hidden) {
+        recentKeys.mapNotNull { k -> apps.firstOrNull { it.key == k && it.key !in s.hidden } }.take(5)
     }
     val visible = remember(all, query) {
         if (query.isBlank()) all else {
@@ -226,15 +239,36 @@ fun AppDrawer(ui: LauncherUi, s: Settings) {
 
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 val list = s.drawerStyle == DrawerStyle.LIST
-                val showBar = s.alphabet && query.isBlank() && letters.size > 1
+                val showBar = s.alphabet && query.isBlank() && letters.size > 1 && s.drawerSort == DrawerSort.ALPHA
                 LazyVerticalGrid(
                     columns = if (list) GridCells.Adaptive(320.dp) else GridCells.Adaptive((s.drawerIconSize + 44f).dp),
                     state = grid,
                     modifier = Modifier.fillMaxSize().nestedScroll(pull),
                     contentPadding = PaddingValues(start = 8.dp, end = if (showBar) 40.dp else 8.dp, bottom = 24.dp),
                 ) {
+                    if (s.showRecent && query.isBlank() && recentApps.isNotEmpty()) {
+                        item(key = "recent", span = { GridItemSpan(maxLineSpan) }) {
+                            Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                                Text("Naposledy", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp, modifier = Modifier.padding(start = 8.dp, top = 4.dp, bottom = 4.dp))
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                    recentApps.forEach { a ->
+                                        Column(
+                                            Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
+                                                .combinedClickable(onClick = { openApp(a) }).padding(vertical = 6.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                        ) {
+                                            AppIconImage(a, 46.dp, s)
+                                            Text(labelOf(a, s), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                                color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(horizontal = 2.dp))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     itemsIndexed(visible, key = { _, e -> e.app.key }) { i, e ->
-                        val firstOfLetter = query.isBlank() && (i == 0 || visible[i - 1].letter != e.letter)
+                        val firstOfLetter = query.isBlank() && s.drawerSort == DrawerSort.ALPHA && (i == 0 || visible[i - 1].letter != e.letter)
                         DrawerEntry(ui, e, s, list, if (list && firstOfLetter) e.letter else null,
                             notifs[e.app.pkg]?.count ?: 0) { openApp(e.app) }
                     }
@@ -257,7 +291,8 @@ fun AppDrawer(ui: LauncherUi, s: Settings) {
                         onActive = { bubble = it },
                         onPick = { l ->
                             val idx = visible.indexOfFirst { it.letter == l }
-                            if (idx >= 0) scope.launch { grid.scrollToItem(idx) }
+                            val header = if (s.showRecent && recentApps.isNotEmpty()) 1 else 0
+                            if (idx >= 0) scope.launch { grid.scrollToItem(idx + header) }
                         },
                     )
                 }
@@ -295,7 +330,7 @@ private fun DrawerEntry(ui: LauncherUi, e: Entry, s: Settings, list: Boolean, le
     Box {
         val mod = Modifier.clip(RoundedCornerShape(16.dp)).combinedClickable(
             onClick = onClick,
-            onLongClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); menu = true },
+            onLongClick = { buzz(haptic, HapticFeedbackType.LongPress); menu = true },
         )
         if (list) {
             Row(mod.fillMaxWidth().padding(vertical = 6.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -345,7 +380,7 @@ private fun AlphabetBar(letters: List<String>, modifier: Modifier, onActive: (St
                         val i = (y / size.height * letters.size).toInt().coerceIn(0, letters.size - 1)
                         if (i != active) {
                             active = i
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            buzz(haptic, HapticFeedbackType.TextHandleMove)
                             pick(letters[i]); act(letters[i])
                         }
                     }

@@ -3,8 +3,9 @@ package sk.fold.launcher.ui
 import android.content.Intent
 import android.provider.AlarmClock
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
@@ -54,23 +55,45 @@ class LauncherUi(val activity: MainActivity) {
 
     /** 0 = zatvorený, 1 = otvorený zoznam aplikácií. Riadi sa prstom aj pružinou. */
     val drawerAnim = Animatable(0f)
-    private val springSpec = spring<Float>(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+
+    /** Rozsah z kompozície – obsahuje hodiny snímok potrebné pre animácie. */
+    var scope: CoroutineScope? = null
+
+    private fun animateDrawer(target: Float, velocity: Float) {
+        val sc = scope
+        if (sc == null) {
+            activity.lifecycleScope.launch { runCatching { drawerAnim.snapTo(target) } }
+            return
+        }
+        val spec = spring<Float>(dampingRatio = 0.82f, stiffness = Store.settings.value.animSpeed.stiffness)
+        sc.launch {
+            try {
+                drawerAnim.animateTo(target, spec, velocity)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                drawerAnim.snapTo(target)
+            }
+        }
+    }
 
     fun openDrawer(search: Boolean = false, velocity: Float = 0f) {
         searchFocus = search
         drawerOpen = true
-        activity.lifecycleScope.launch { drawerAnim.animateTo(1f, springSpec, velocity) }
+        animateDrawer(1f, velocity)
     }
 
     fun closeDrawer(velocity: Float = 0f) {
+        if (!drawerOpen && drawerAnim.value == 0f) return
         drawerOpen = false
         searchFocus = false
-        activity.lifecycleScope.launch { drawerAnim.animateTo(0f, springSpec, velocity) }
+        animateDrawer(0f, velocity)
     }
 
     /** Ťahanie prstom – progres 0..1. */
     fun dragDrawer(p: Float) {
-        activity.lifecycleScope.launch { drawerAnim.snapTo(p.coerceIn(0f, 1f)) }
+        val sc = scope ?: activity.lifecycleScope
+        sc.launch { runCatching { drawerAnim.snapTo(p.coerceIn(0f, 1f)) } }
     }
 
     /** Pustenie prsta – rozhodne podľa polohy a rýchlosti (rýchlosť v progrese za sekundu, + = otvárať). */

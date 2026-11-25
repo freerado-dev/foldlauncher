@@ -3,6 +3,7 @@
 package sk.fold.launcher.ui
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.BackHandler
@@ -54,6 +55,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import sk.fold.launcher.data.ACCENTS
+import sk.fold.launcher.data.AnimSpeed
+import sk.fold.launcher.data.DrawerSort
+import sk.fold.launcher.data.PageEffect
 import sk.fold.launcher.data.Apps
 import sk.fold.launcher.data.BadgeStyle
 import sk.fold.launcher.data.Badges
@@ -161,6 +165,7 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
     val badgesOn = remember(tick) { Badges.enabled(ctx) }
     val a11yOn = remember(tick) { LockService.instance != null }
     var confirmCopy by remember { mutableStateOf<Pair<Screen, Screen>?>(null) }
+    var confirmReset by remember { mutableStateOf(false) }
 
     FullSheet("Nastavenia", onClose = onClose) {
         LazyColumn(Modifier.fillMaxSize()) {
@@ -175,6 +180,28 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                             style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.size(8.dp))
                         Button(onClick = { act.requestDefaultLauncher() }) { Text("Nastaviť ako predvolený") }
+                    }
+                }
+            }
+
+            if (!badgesOn || !a11yOn) {
+                item { SectionTitle("Povolenia") }
+                item {
+                    Group {
+                        Text(
+                            "Ak je prepínač sivý a nedá sa zapnúť, Android blokuje toto nastavenie pre aplikácie nainštalované mimo Obchodu Play. " +
+                                "Odblokuješ ho takto: 1) ťukni na „Informácie o aplikácii“ nižšie, 2) vpravo hore ⋮, " +
+                                "3) „Povoliť obmedzené nastavenia“ a potvrď, 4) vráť sa sem a zapni povolenie.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                        )
+                        ClickRow("1. Informácie o aplikácii", "Tu povolíš obmedzené nastavenia (⋮ vpravo hore)") {
+                            runCatching {
+                                act.startActivity(Intent(AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + act.packageName)))
+                            }
+                        }
+                        if (!badgesOn) ClickRow("2. Prístup k notifikáciám", "Odznaky a text notifikácií v obľúbených") { openListenerSettings(act) }
+                        if (!a11yOn) ClickRow("3. Služba gest (Dostupnosť)", "Zamknutie dvojitým ťuknutím, otvorenie hornej lišty") { openA11ySettings(act) }
                     }
                 }
             }
@@ -202,6 +229,9 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                     }
                     SwitchRow("Zobraziť mriežku pri úpravách", checked = s.showGrid) { v -> edit { it.copy(showGrid = v) } }
                     SwitchRow("Zamknúť rozloženie", "Zabráni náhodnému presunu", s.lockLayout) { v -> edit { it.copy(lockLayout = v) } }
+                    SwitchRow("Nové aplikácie pridať na plochu", "Po inštalácii sa ikona pridá automaticky", s.autoAddApps) { v -> edit { it.copy(autoAddApps = v) } }
+                    ChoiceRow("Efekt listovania stránok", PageEffect.entries, s.pageEffect, { it.label }) { v -> edit { it.copy(pageEffect = v) } }
+                    SwitchRow("Indikátor stránok", checked = s.showPageDots) { v -> edit { it.copy(showPageDots = v) } }
                     ClickRow("Upraviť plochu", "Pridávanie widgetov, presun a zmena veľkosti") { onClose(); ui.startEdit() }
                     ClickRow("Skopírovať vonkajší → vnútorný") { confirmCopy = Screen.COVER to Screen.INNER }
                     ClickRow("Skopírovať vnútorný → vonkajší") { confirmCopy = Screen.INNER to Screen.COVER }
@@ -212,6 +242,8 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
             item {
                 Group {
                     SwitchRow("Skryť stavový riadok", checked = s.hideStatusBar) { v -> edit { it.copy(hideStatusBar = v) } }
+                    SwitchRow("Skryť navigačnú lištu", "Zobrazí sa potiahnutím od spodného okraja", s.hideNavBar) { v -> edit { it.copy(hideNavBar = v) } }
+                    SwitchRow("Uzamknúť na výšku", "Plocha sa nebude otáčať", s.lockPortrait) { v -> edit { it.copy(lockPortrait = v) } }
                     SliderRow("Stmavenie tapety", s.wallpaperDim, 0f..0.8f, 0, { "${(it * 100).roundToInt()} %" }) { v -> edit { it.copy(wallpaperDim = v) } }
                     ClickRow("Zmeniť tapetu") {
                         runCatching { act.startActivity(Intent.createChooser(Intent(Intent.ACTION_SET_WALLPAPER), "Tapeta")) }
@@ -266,6 +298,9 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
             item {
                 Group {
                     ChoiceRow("Štýl", DrawerStyle.entries, s.drawerStyle, { it.label }) { v -> edit { it.copy(drawerStyle = v) } }
+                    ChoiceRow("Zoradiť", DrawerSort.entries, s.drawerSort, { it.label }) { v -> edit { it.copy(drawerSort = v) } }
+                    SwitchRow("Naposledy použité hore", checked = s.showRecent) { v -> edit { it.copy(showRecent = v) } }
+                    SwitchRow("Aplikácie pracovného profilu", checked = s.showWork) { v -> edit { it.copy(showWork = v) } }
                     SwitchRow("Abecedný posuvník", checked = s.alphabet) { v -> edit { it.copy(alphabet = v) } }
                     SwitchRow("Hneď zobraziť klávesnicu", checked = s.autoKeyboard) { v -> edit { it.copy(autoKeyboard = v) } }
                     SliderRow("Veľkosť ikon", s.drawerIconSize, 28f..64f, 8, { "${it.roundToInt()} dp" }) { v -> edit { it.copy(drawerIconSize = v.roundToInt().toFloat()) } }
@@ -278,9 +313,6 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
             item { SectionTitle("Notifikácie") }
             item {
                 Group {
-                    if (!badgesOn) ClickRow("Povoliť prístup k notifikáciám", "Potrebné pre odznaky a text v obľúbených") {
-                        runCatching { act.startActivity(Intent(AndroidSettings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
-                    }
                     ChoiceRow("Odznaky", BadgeStyle.entries, s.badges, { it.label }) { v -> edit { it.copy(badges = v) } }
                     SwitchRow("Text notifikácie v obľúbených", checked = s.favNotifText) { v -> edit { it.copy(favNotifText = v) } }
                 }
@@ -289,19 +321,31 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
             item { SectionTitle("Gestá") }
             item {
                 Group {
-                    if (!a11yOn) ClickRow("Zapnúť službu gest", "Potrebná na zamknutie obrazovky dvojitým ťuknutím") { sk.fold.launcher.data.SysActions.openAccessibility(act) }
                     GestureRow("Dvojité ťuknutie", s.doubleTap) { v -> edit { it.copy(doubleTap = v) } }
                     GestureRow("Potiahnutie nahor", s.swipeUp) { v -> edit { it.copy(swipeUp = v) } }
                     GestureRow("Potiahnutie nadol", s.swipeDown) { v -> edit { it.copy(swipeDown = v) } }
                 }
             }
 
-            item { SectionTitle("Záloha") }
+            item { SectionTitle("Správanie") }
+            item {
+                Group {
+                    SwitchRow("Haptická odozva", "Vibrácia pri podržaní a zmene veľkosti", s.haptics) { v -> edit { it.copy(haptics = v) } }
+                    ChoiceRow("Rýchlosť animácií", AnimSpeed.entries, s.animSpeed, { it.label }) { v -> edit { it.copy(animSpeed = v) } }
+                    ClickRow("Predvolená domovská aplikácia", if (isDefault) "Fold Launcher je predvolený" else "Fold Launcher nie je predvolený") { act.requestDefaultLauncher() }
+                }
+            }
+
+            item { SectionTitle("Záloha a údržba") }
             item {
                 Group {
                     ClickRow("Exportovať nastavenia a plochu") { act.exportBackup() }
                     ClickRow("Obnoviť zo zálohy") { act.importBackup() }
-                    ClickRow("Predvolená domovská aplikácia") { act.requestDefaultLauncher() }
+                    ClickRow("Obnoviť predvolené nastavenia", "Plocha, obľúbené a skryté aplikácie ostanú") { confirmReset = true }
+                    ClickRow("Reštartovať launcher") {
+                        act.finishAffinity()
+                        android.os.Process.killProcess(android.os.Process.myPid())
+                    }
                 }
             }
 
@@ -314,6 +358,14 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
             }
         }
     }
+
+    if (confirmReset) AlertDialog(
+        onDismissRequest = { confirmReset = false },
+        title = { Text("Obnoviť predvolené nastavenia?") },
+        text = { Text("Vzhľad, gestá a zoznam aplikácií sa vrátia na pôvodné hodnoty. Rozloženie plochy ostane.") },
+        confirmButton = { TextButton(onClick = { Store.resetSettings(); confirmReset = false }) { Text("Obnoviť") } },
+        dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Zrušiť") } },
+    )
 
     confirmCopy?.let { (from, to) ->
         AlertDialog(
@@ -329,6 +381,23 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
             dismissButton = { TextButton(onClick = { confirmCopy = null }) { Text("Zrušiť") } },
         )
     }
+}
+
+private fun openListenerSettings(act: android.app.Activity) {
+    val cn = sk.fold.launcher.data.BadgeService.component(act).flattenToString()
+    val ok = Build.VERSION.SDK_INT >= 30 && runCatching {
+        act.startActivity(Intent(AndroidSettings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
+            .putExtra(AndroidSettings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, cn))
+    }.isSuccess
+    if (!ok) runCatching { act.startActivity(Intent(AndroidSettings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+}
+
+private fun openA11ySettings(act: android.app.Activity) {
+    val cn = android.content.ComponentName(act, sk.fold.launcher.data.LockService::class.java).flattenToString()
+    val ok = Build.VERSION.SDK_INT >= 31 && runCatching {
+        act.startActivity(Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS").putExtra(Intent.EXTRA_COMPONENT_NAME, cn))
+    }.isSuccess
+    if (!ok) sk.fold.launcher.data.SysActions.openAccessibility(act)
 }
 
 @Composable

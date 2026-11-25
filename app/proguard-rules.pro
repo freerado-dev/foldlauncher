@@ -1,2 +1,4 @@
 -keep class sk.fold.launcher.data.LockService { *; }
 -keep class sk.fold.launcher.data.BadgeService { *; }
+-dontobfuscate
+-keepattributes SourceFile,LineNumberTable
