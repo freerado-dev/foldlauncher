@@ -41,6 +41,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shadow
@@ -317,8 +321,35 @@ private fun FavoritesView(ui: LauncherUi, s: Settings, hDp: Dp) {
     val titleSize = (s.favIconSize * 0.6f).coerceIn(13f, 24f).sp
     val subSize = (s.favIconSize * 0.42f).coerceIn(11f, 15f).sp
     val needScroll = rowH * entries.size > hDp
+    // Keď je zoznam navrchu, potiahnutie nadol vyvolá gesto plochy (horná lišta), ako všade inde.
+    val swipeDown by rememberUpdatedState(s.swipeDown)
+    val threshold = with(LocalDensity.current) { 56.dp.toPx() }
+    val pullDown = remember(threshold) {
+        object : NestedScrollConnection {
+            var acc = 0f
+            var fired = false
+            var flinging = false
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (!flinging && available.y > 0f) {
+                    acc += available.y
+                    if (!fired && acc > threshold) { fired = true; ui.gesture(swipeDown) }
+                } else if (consumed.y != 0f) acc = 0f
+                return Offset.Zero
+            }
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                flinging = true; acc = 0f; fired = false
+                return Velocity.Zero
+            }
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                flinging = false
+                return Velocity.Zero
+            }
+        }
+    }
     Column(
-        Modifier.fillMaxSize().then(if (needScroll) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+        Modifier.fillMaxSize().then(
+            if (needScroll) Modifier.nestedScroll(pullDown).verticalScroll(rememberScrollState()) else Modifier
+        ),
         verticalArrangement = if (needScroll) Arrangement.Top else Arrangement.Center,
     ) {
         entries.forEach { (k, a) -> key(k) {
