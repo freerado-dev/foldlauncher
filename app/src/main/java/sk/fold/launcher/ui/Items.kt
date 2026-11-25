@@ -66,6 +66,7 @@ import sk.fold.launcher.data.IconCache
 import sk.fold.launcher.data.ItemType
 import sk.fold.launcher.data.LauncherWidgetView
 import sk.fold.launcher.data.Settings
+import sk.fold.launcher.data.Store
 import sk.fold.launcher.data.Widgets
 import sk.fold.launcher.data.labelOf
 import java.text.SimpleDateFormat
@@ -117,8 +118,11 @@ fun BadgeMark(count: Int, s: Settings, modifier: Modifier = Modifier) {
     }
 }
 
+/** Spätné volania na ťahanie widgetu po dlhom podržaní. */
+class WidgetDrag(val start: () -> Unit, val move: (Offset) -> Unit, val end: (Boolean) -> Unit)
+
 @Composable
-fun ItemContent(ui: LauncherUi, item: HomeItem, s: Settings, wDp: Dp, hDp: Dp) {
+fun ItemContent(ui: LauncherUi, item: HomeItem, s: Settings, wDp: Dp, hDp: Dp, drag: WidgetDrag? = null) {
     when (item.type) {
         ItemType.APP -> {
             val apps by Apps.list.collectAsState()
@@ -129,10 +133,10 @@ fun ItemContent(ui: LauncherUi, item: HomeItem, s: Settings, wDp: Dp, hDp: Dp) {
         }
         ItemType.SHORTCUT -> IconTile(item.label ?: "", s, wDp, hDp, 0) { sz -> ShortcutIconImage(item, sz, s) }
         ItemType.FOLDER -> IconTile(item.label ?: "Priečinok", s, wDp, hDp, 0) { sz -> FolderIcon(item, sz, s) }
-        ItemType.WIDGET -> WidgetBox(ui, item, wDp, hDp)
+        ItemType.WIDGET -> WidgetBox(ui, item, wDp, hDp, drag)
         ItemType.CLOCK -> ClockView(s, wDp, hDp)
         ItemType.FAVORITES -> FavoritesView(ui, s, hDp)
-        ItemType.SEARCH -> SearchPill(s, hDp)
+        ItemType.SEARCH -> {}
     }
 }
 
@@ -178,7 +182,7 @@ private fun FolderIcon(item: HomeItem, size: Dp, s: Settings) {
 }
 
 @Composable
-private fun WidgetBox(ui: LauncherUi, item: HomeItem, wDp: Dp, hDp: Dp) {
+private fun WidgetBox(ui: LauncherUi, item: HomeItem, wDp: Dp, hDp: Dp, drag: WidgetDrag?) {
     val ctx = LocalContext.current
     val info = remember(item.widgetId) { runCatching { Widgets.manager.getAppWidgetInfo(item.widgetId) }.getOrNull() }
     if (info == null) {
@@ -201,7 +205,18 @@ private fun WidgetBox(ui: LauncherUi, item: HomeItem, wDp: Dp, hDp: Dp) {
     AndroidView(
         factory = { (view.parent as? ViewGroup)?.removeView(view); view },
         modifier = Modifier.fillMaxSize(),
-        update = { v -> v.onLongPress = { onLong() } },
+        update = { v ->
+            v.onLongPress = { onLong() }
+            v.onDragStart = { drag?.start?.invoke() }
+            v.onDrag = { dx, dy -> drag?.move?.invoke(Offset(dx, dy)) }
+            v.onDragEnd = { ok -> drag?.end?.invoke(ok) }
+            v.onSwipe = { dir ->
+                if (!ui.editMode) {
+                    val st = Store.settings.value
+                    if (dir < 0) ui.gesture(st.swipeUp) else ui.gesture(st.swipeDown)
+                }
+            }
+        },
     )
     LaunchedEffect(view, wDp, hDp) { Widgets.updateSize(view, wDp.value, hDp.value) }
 }
@@ -263,8 +278,10 @@ private fun FavoritesView(ui: LauncherUi, s: Settings, hDp: Dp) {
         return
     }
     val rowH = (hDp / favs.size).coerceIn(40.dp, 76.dp)
+    // Posúvanie len keď sa zoznam nezmestí – inak zvislé potiahnutie patrí ploche (zoznam / notifikácie).
+    val overflow = hDp / favs.size < 40.dp
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        Modifier.fillMaxSize().then(if (overflow) Modifier.verticalScroll(rememberScrollState()) else Modifier),
         verticalArrangement = Arrangement.Center,
     ) {
         favs.forEach { a ->
@@ -294,20 +311,3 @@ private fun FavoritesView(ui: LauncherUi, s: Settings, hDp: Dp) {
         }
     }
 }
-
-@Composable
-private fun SearchPill(s: Settings, hDp: Dp) {
-    val h = hDp.coerceAtMost(56.dp) - 6.dp
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Row(
-            Modifier.fillMaxWidth().height(h.coerceAtLeast(28.dp)).clip(RoundedCornerShape(50))
-                .background(Color.White.copy(alpha = 0.22f)).padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Filled.Search, null, tint = Color.White)
-            Spacer(Modifier.width(10.dp))
-            Text("Hľadať", style = labelStyle(s, 16.sp), fontFamily = LocalFont.current)
-        }
-    }
-}
-

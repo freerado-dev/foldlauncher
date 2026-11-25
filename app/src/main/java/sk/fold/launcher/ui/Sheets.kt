@@ -122,7 +122,6 @@ fun WidgetPicker(ui: LauncherUi, screen: Screen) {
                 LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     item { ElementCard("Hodiny", "Čas a dátum", Icons.Filled.Schedule) { ui.sheet = null; ui.addElement(ItemType.CLOCK) } }
                     item { ElementCard("Obľúbené", "Zoznam ako Niagara", Icons.Filled.Star) { ui.sheet = null; ui.addElement(ItemType.FAVORITES) } }
-                    item { ElementCard("Vyhľadávanie", "Lišta hľadania", Icons.Filled.Search) { ui.sheet = null; ui.addElement(ItemType.SEARCH) } }
                     item { ElementCard("Priečinok", "Skupina aplikácií", Icons.Filled.Folder) { ui.addElement(ItemType.FOLDER) } }
                 }
             }

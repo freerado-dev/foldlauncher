@@ -34,7 +34,11 @@ object Store {
             runCatching { settings.value = settingsFromJson(JSONObject(s)) }
         }
         for (s in Screen.entries) sp.getString("layout_${s.name}", null)?.let { j ->
-            runCatching { layouts.getValue(s).value = layoutFromJson(JSONObject(j), s) }
+            runCatching {
+                // Vyhľadávacia lišta na ploche bola zrušená – zoznam aplikácií sa otvára potiahnutím nahor.
+                val l = layoutFromJson(JSONObject(j), s)
+                layouts.getValue(s).value = l.copy(items = l.items.filter { it.type != ItemType.SEARCH })
+            }
         }
     }
 
@@ -101,15 +105,13 @@ object Store {
         if (layout(Screen.COVER).value.items.isEmpty()) editLayout(Screen.COVER) {
             it.copy(items = listOf(
                 HomeItem(newId(), ItemType.CLOCK, 0, 0, 1, 6, 2),
-                HomeItem(newId(), ItemType.FAVORITES, 0, 0, 4, 6, 6),
-                HomeItem(newId(), ItemType.SEARCH, 0, 0, 11, 6, 1),
+                HomeItem(newId(), ItemType.FAVORITES, 0, 0, 5, 6, 7),
             ))
         }
         if (layout(Screen.INNER).value.items.isEmpty()) editLayout(Screen.INNER) {
             it.copy(items = listOf(
                 HomeItem(newId(), ItemType.CLOCK, 0, 1, 1, 5, 2),
-                HomeItem(newId(), ItemType.FAVORITES, 0, 1, 4, 5, 5),
-                HomeItem(newId(), ItemType.SEARCH, 0, 3, 9, 6, 1),
+                HomeItem(newId(), ItemType.FAVORITES, 0, 1, 4, 5, 6),
             ))
         }
     }

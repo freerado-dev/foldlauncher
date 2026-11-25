@@ -2,6 +2,11 @@ package sk.fold.launcher.ui
 
 import android.content.Intent
 import android.provider.AlarmClock
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -41,19 +46,37 @@ class LauncherUi(val activity: MainActivity) {
     var requestPage by mutableStateOf<Int?>(null)
     var homeSignal by mutableIntStateOf(0)
     var resumeTick by mutableIntStateOf(0)
+    var homeScale by mutableFloatStateOf(1f)
     var cellW by mutableFloatStateOf(70f)
     var cellH by mutableFloatStateOf(70f)
 
     fun showPage(p: Int) { requestPage = p }
 
-    fun openDrawer(search: Boolean = false) {
+    /** 0 = zatvorený, 1 = otvorený zoznam aplikácií. Riadi sa prstom aj pružinou. */
+    val drawerAnim = Animatable(0f)
+    private val springSpec = spring<Float>(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+
+    fun openDrawer(search: Boolean = false, velocity: Float = 0f) {
         searchFocus = search
         drawerOpen = true
+        activity.lifecycleScope.launch { drawerAnim.animateTo(1f, springSpec, velocity) }
     }
 
-    fun closeDrawer() {
+    fun closeDrawer(velocity: Float = 0f) {
         drawerOpen = false
         searchFocus = false
+        activity.lifecycleScope.launch { drawerAnim.animateTo(0f, springSpec, velocity) }
+    }
+
+    /** Ťahanie prstom – progres 0..1. */
+    fun dragDrawer(p: Float) {
+        activity.lifecycleScope.launch { drawerAnim.snapTo(p.coerceIn(0f, 1f)) }
+    }
+
+    /** Pustenie prsta – rozhodne podľa polohy a rýchlosti (rýchlosť v progrese za sekundu, + = otvárať). */
+    fun settleDrawer(velocity: Float) {
+        val open = if (kotlin.math.abs(velocity) > 1.2f) velocity > 0 else drawerAnim.value > 0.4f
+        if (open) openDrawer(velocity = velocity) else closeDrawer(velocity = velocity)
     }
 
     fun startEdit(select: Long? = null) {

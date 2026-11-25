@@ -70,6 +70,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -121,11 +123,10 @@ fun AppDrawer(ui: LauncherUi, s: Settings) {
     val letters = remember(visible) { visible.map { it.letter }.distinct() }
     var bubble by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(ui.searchFocus, s.autoKeyboard) {
-        if (ui.searchFocus || s.autoKeyboard) runCatching { focus.requestFocus() }
+    LaunchedEffect(ui.searchFocus, s.autoKeyboard, ui.drawerOpen) {
+        if (ui.drawerOpen && (ui.searchFocus || s.autoKeyboard)) runCatching { focus.requestFocus() }
     }
 
-    val close by rememberUpdatedState { keyboard?.hide(); query = ""; ui.closeDrawer() }
     fun openApp(a: AppInfo) {
         Apps.launch(ui.activity, a)
         keyboard?.hide()
@@ -133,33 +134,70 @@ fun AppDrawer(ui: LauncherUi, s: Settings) {
         ui.closeDrawer()
     }
 
-    val closePx = with(density) { 110.dp.toPx() }
-    val pull = remember {
+    // Zatváranie ťahaním nadol – zoznam ide za prstom a dobehne pružinou.
+    val range = with(density) { (LocalConfiguration.current.screenHeightDp.dp * 0.6f).toPx() }
+    val pull = remember(range) {
         object : NestedScrollConnection {
             var acc = 0f
             var flinging = false
-            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (!flinging && available.y > 0f) {
-                    acc += available.y
-                    if (acc > closePx) { acc = 0f; close() }
-                } else if (consumed.y != 0f || available.y < 0f) acc = 0f
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (acc > 0f && available.y < 0f) {
+                    val use = maxOf(available.y, -acc)
+                    acc += use
+                    ui.dragDrawer(1f - acc / range)
+                    return Offset(0f, use)
+                }
                 return Offset.Zero
             }
-            override suspend fun onPreFling(available: Velocity): Velocity { flinging = true; acc = 0f; return Velocity.Zero }
-            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity { flinging = false; return Velocity.Zero }
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (!flinging && available.y > 0f) {
+                    if (acc == 0f) keyboard?.hide()
+                    acc += available.y
+                    ui.dragDrawer(1f - acc / range)
+                    return Offset(0f, available.y)
+                }
+                return Offset.Zero
+            }
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (acc > 0f) {
+                    acc = 0f
+                    ui.settleDrawer(-available.y / range)
+                    return available
+                }
+                flinging = true
+                return Velocity.Zero
+            }
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                flinging = false
+                return Velocity.Zero
+            }
         }
+    }
+    val headerDrag = Modifier.pointerInput(range) {
+        var acc = 0f
+        val tracker = VelocityTracker()
+        detectVerticalDragGestures(
+            onDragStart = { acc = 0f; tracker.resetTracking(); keyboard?.hide() },
+            onVerticalDrag = { ch, d ->
+                ch.consume()
+                tracker.addPosition(ch.uptimeMillis, ch.position)
+                acc = (acc + d).coerceAtLeast(0f)
+                ui.dragDrawer(1f - acc / range)
+            },
+            onDragEnd = { ui.settleDrawer(-tracker.calculateVelocity().y / range) },
+            onDragCancel = { ui.settleDrawer(0f) },
+        )
     }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface.copy(alpha = s.drawerAlpha)) {
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+            Box(Modifier.fillMaxWidth().then(headerDrag).padding(top = 8.dp, bottom = 2.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.width(40.dp).height(4.dp).clip(CircleShape).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)))
+            }
             // Hlavička s vyhľadávaním – potiahnutím dole sa zoznam zavrie.
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)
-                    .pointerInput(Unit) {
-                        var t = 0f
-                        detectVerticalDragGestures(onDragStart = { t = 0f }, onVerticalDrag = { _, d -> t += d },
-                            onDragEnd = { if (t > closePx * 0.6f) close() })
-                    },
+                    .then(headerDrag),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 TextField(

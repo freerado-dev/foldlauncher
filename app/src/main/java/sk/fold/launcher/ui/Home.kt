@@ -1,6 +1,9 @@
 package sk.fold.launcher.ui
 
 import android.content.Intent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -62,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -69,6 +73,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -78,6 +83,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import sk.fold.launcher.data.Apps
 import sk.fold.launcher.data.Cell
+import sk.fold.launcher.data.GestureAction
 import sk.fold.launcher.data.HomeItem
 import sk.fold.launcher.data.ItemType
 import sk.fold.launcher.data.Screen
@@ -106,32 +112,56 @@ fun HomeScreen(ui: LauncherUi, screen: Screen, layout: ScreenLayout, s: Settings
     val editing by rememberUpdatedState(ui.editMode)
     val swipe = Modifier.pointerInput(Unit) {
         var total = 0f
-        val threshold = 60.dp.toPx()
+        var dir = 0
+        var fired = false
+        val tracker = VelocityTracker()
+        val threshold = 56.dp.toPx()
         detectVerticalDragGestures(
-            onDragStart = { total = 0f },
-            onVerticalDrag = { ch, d -> if (!editing) { ch.consume(); total += d } },
-            onDragEnd = {
+            onDragStart = { total = 0f; dir = 0; fired = false; tracker.resetTracking() },
+            onVerticalDrag = { ch, d ->
                 if (!editing) {
-                    if (total < -threshold) ui.gesture(sUp.swipeUp)
-                    else if (total > threshold) ui.gesture(sUp.swipeDown)
+                    ch.consume()
+                    total += d
+                    tracker.addPosition(ch.uptimeMillis, ch.position)
+                    if (dir == 0 && d != 0f) dir = if (d < 0) -1 else 1
+                    val range = size.height * 0.6f
+                    if (dir < 0 && sUp.swipeUp == GestureAction.DRAWER) ui.dragDrawer(-total / range)
+                    else if (dir > 0 && !fired && total > threshold) { fired = true; ui.gesture(sUp.swipeDown) }
                 }
             },
+            onDragEnd = {
+                if (!editing) {
+                    val range = size.height * 0.6f
+                    if (dir < 0 && sUp.swipeUp == GestureAction.DRAWER) ui.settleDrawer(-tracker.calculateVelocity().y / range)
+                    else if (dir < 0 && total < -threshold) ui.gesture(sUp.swipeUp)
+                }
+            },
+            onDragCancel = { if (dir < 0 && sUp.swipeUp == GestureAction.DRAWER) ui.settleDrawer(0f) },
         )
     }
 
-    Box(Modifier.fillMaxSize().then(swipe).windowInsetsPadding(WindowInsets.safeDrawing)) {
-        Column(Modifier.fillMaxSize()) {
-            if (ui.editMode) SelectionBar(ui, screen, layout, s)
-            HorizontalPager(
-                state = pager,
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                userScrollEnabled = !dragging,
-                beyondViewportPageCount = 1,
-            ) { page ->
-                HomePage(ui, screen, layout, page, s) { dragging = it }
-            }
-            if (layout.pages > 1) PageDots(layout.pages, pager.currentPage)
-            if (ui.editMode) EditToolbar(ui, layout)
+    // V režime úprav sa stránka zmenší (mriežka ostane rovnaká) a nad/pod ňou sú lišty.
+    BoxWithConstraints(Modifier.fillMaxSize().then(swipe).windowInsetsPadding(WindowInsets.safeDrawing)) {
+        val h = maxHeight
+        val editScale = ((h - 150.dp) / h).coerceIn(0.6f, 0.9f)
+        val scale by animateFloatAsState(if (ui.editMode) editScale else 1f, spring(stiffness = Spring.StiffnessMediumLow), label = "edit")
+        LaunchedEffect(scale) { ui.homeScale = scale }
+        HorizontalPager(
+            state = pager,
+            modifier = Modifier.fillMaxSize().padding(bottom = if (layout.pages > 1) 16.dp else 0.dp)
+                .graphicsLayer {
+                    scaleX = scale; scaleY = scale
+                    transformOrigin = TransformOrigin(0.5f, 0.42f)
+                },
+            userScrollEnabled = !dragging,
+            beyondViewportPageCount = 1,
+        ) { page ->
+            HomePage(ui, screen, layout, page, s) { dragging = it }
+        }
+        if (layout.pages > 1) Box(Modifier.align(Alignment.BottomCenter)) { PageDots(layout.pages, pager.currentPage) }
+        if (ui.editMode) {
+            Box(Modifier.align(Alignment.TopCenter)) { SelectionBar(ui, screen, layout, s) }
+            Box(Modifier.align(Alignment.BottomCenter)) { EditToolbar(ui, layout) }
         }
     }
 }
@@ -155,7 +185,8 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
     val items = layout.items.filter { it.page == page }
-    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 2.dp)) {
+    val margin = if (screen == Screen.COVER) 14.dp else 6.dp
+    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = margin, vertical = 4.dp)) {
         val cw = constraints.maxWidth.toFloat() / layout.cols
         val ch = constraints.maxHeight.toFloat() / layout.rows
         val cwDp = with(density) { cw.toDp() }
@@ -256,6 +287,7 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
                 key(sel.id, edge) {
                     ResizeHandle(
                         edge = edge, rect = r, cw = cw, ch = ch,
+                        pageW = constraints.maxWidth.toFloat(), pageH = constraints.maxHeight.toFloat(),
                         onStart = { resize = sel.cell; onDragging(true) },
                         onResize = { acc ->
                             val st = sel.cell
@@ -287,7 +319,7 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
 }
 
 @Composable
-private fun ResizeHandle(edge: Edge, rect: Cell, cw: Float, ch: Float, onStart: () -> Unit, onResize: (Offset) -> Unit, onEnd: () -> Unit) {
+private fun ResizeHandle(edge: Edge, rect: Cell, cw: Float, ch: Float, pageW: Float, pageH: Float, onStart: () -> Unit, onResize: (Offset) -> Unit, onEnd: () -> Unit) {
     val density = LocalDensity.current
     val touch = 36.dp
     val tPx = with(density) { touch.toPx() }
@@ -295,13 +327,16 @@ private fun ResizeHandle(edge: Edge, rect: Cell, cw: Float, ch: Float, onStart: 
     val top = rect.y * ch
     val right = (rect.x + rect.w) * cw
     val bottom = (rect.y + rect.h) * ch
-    val (cx, cy) = when (edge) {
+    val (rx, ry) = when (edge) {
         Edge.LEFT -> left to (top + bottom) / 2
         Edge.TOP -> (left + right) / 2 to top
         Edge.RIGHT -> right to (top + bottom) / 2
         Edge.BOTTOM -> (left + right) / 2 to bottom
         Edge.CORNER -> right to bottom
     }
+    // Úchyt nikdy nevytŕča mimo obrazovku – aj pri prvku pri okraji displeja sa dá chytiť.
+    val cx = rx.coerceIn(tPx / 2, maxOf(tPx / 2, pageW - tPx / 2))
+    val cy = ry.coerceIn(tPx / 2, maxOf(tPx / 2, pageH - tPx / 2))
     val start by rememberUpdatedState(onStart)
     val move by rememberUpdatedState(onResize)
     val end by rememberUpdatedState(onEnd)
@@ -374,7 +409,14 @@ private fun ItemFrame(
                 if (dragged) { scaleX = 1.05f; scaleY = 1.05f; alpha = 0.92f }
             }
     ) {
-        ItemContent(ui, item, s, wDp, hDp)
+        val widgetDrag = remember(item.id) {
+            WidgetDrag(
+                start = { menu = false; if (ui.editMode) dStart() },
+                move = { d -> if (ui.editMode) dMove(d / ui.homeScale) },
+                end = { ok -> dEnd(ok && ui.editMode) },
+            )
+        }
+        ItemContent(ui, item, s, wDp, hDp, widgetDrag)
         if (ui.editMode) {
             // V režime úprav zachytíme dotyky skôr, než sa dostanú k obsahu (widgetu).
             Box(
