@@ -43,7 +43,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -68,6 +71,7 @@ import sk.fold.launcher.data.BadgeStyle
 import sk.fold.launcher.data.Badges
 import sk.fold.launcher.data.ClockStyle
 import sk.fold.launcher.data.FOLDER_PREFIX
+import sk.fold.launcher.data.GestureAction
 import sk.fold.launcher.data.HomeItem
 import sk.fold.launcher.data.IconCache
 import sk.fold.launcher.data.ItemType
@@ -324,32 +328,56 @@ private fun FavoritesView(ui: LauncherUi, s: Settings, hDp: Dp) {
     // Keď je zoznam navrchu, potiahnutie nadol vyvolá gesto plochy (horná lišta), ako všade inde.
     // Sledujeme priamo prst (pred zoznamom), nie signály posúvania – tie sa po švihnutí vedia zaseknúť.
     val swipeDown by rememberUpdatedState(s.swipeDown)
+    val swipeUp by rememberUpdatedState(s.swipeUp)
     val scroll = rememberScrollState()
-    val pullDown = Modifier.pointerInput(Unit) {
+    val drawerRange = with(LocalDensity.current) { (LocalConfiguration.current.screenHeightDp.dp * 0.6f).toPx() }
+    val pullDown = Modifier.pointerInput(drawerRange) {
         val threshold = 56.dp.toPx()
         val slop = viewConfiguration.touchSlop
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            if (scroll.value > 0) return@awaitEachGesture
+            val atTop = scroll.value == 0
+            val atBottom = scroll.value >= scroll.maxValue
+            if (!atTop && !atBottom) return@awaitEachGesture
+            val tracker = VelocityTracker()
+            tracker.addPosition(down.uptimeMillis, down.position)
+            var drawerDrag = false
+            /** Zvyšok gesta už nepatrí zoznamu ani ploche. */
+            suspend fun AwaitPointerEventScope.swallowRest() {
+                while (true) {
+                    val e2 = awaitPointerEvent(PointerEventPass.Initial)
+                    val c2 = e2.changes.firstOrNull { it.id == down.id } ?: break
+                    c2.consume()
+                    if (!c2.pressed) break
+                }
+            }
             while (true) {
                 val ev = awaitPointerEvent(PointerEventPass.Initial)
-                val c = ev.changes.firstOrNull { it.id == down.id } ?: break
-                if (!c.pressed) break
+                val c = ev.changes.firstOrNull { it.id == down.id }
+                if (c == null) { if (drawerDrag) ui.settleDrawer(0f); break }
+                tracker.addPosition(c.uptimeMillis, c.position)
                 val dy = c.position.y - down.position.y
                 val dx = c.position.x - down.position.x
-                if (dy < -slop) break                                   // nahor – posúva zoznam
-                if (kotlin.math.abs(dx) > slop * 2 && kotlin.math.abs(dx) > dy) break // vodorovne – stránky
-                if (dy > threshold && scroll.value == 0) {
-                    ui.gesture(swipeDown)
-                    // zvyšok gesta už nepatrí zoznamu ani ploche
-                    c.consume()
-                    while (true) {
-                        val e2 = awaitPointerEvent(PointerEventPass.Initial)
-                        val c2 = e2.changes.firstOrNull { it.id == down.id } ?: break
-                        c2.consume()
-                        if (!c2.pressed) break
-                    }
+                if (!c.pressed) {
+                    if (drawerDrag) ui.settleDrawer(-tracker.calculateVelocity().y / drawerRange)
                     break
+                }
+                if (drawerDrag) {
+                    // Zoznam aplikácií ide za prstom.
+                    c.consume()
+                    ui.dragDrawer((-dy - slop).coerceAtLeast(0f) / drawerRange)
+                    continue
+                }
+                if (kotlin.math.abs(dx) > slop * 2 && kotlin.math.abs(dx) > kotlin.math.abs(dy)) break // vodorovne – stránky
+                if (dy > 0f && !atTop) break
+                if (dy < 0f && !atBottom) break
+                if (dy > threshold && atTop) {
+                    c.consume(); ui.gesture(swipeDown); swallowRest(); break
+                }
+                if (dy < -slop && atBottom) {
+                    c.consume()
+                    if (swipeUp == GestureAction.DRAWER) { drawerDrag = true; ui.dragDrawer(0f) }
+                    else if (dy < -threshold) { ui.gesture(swipeUp); swallowRest(); break }
                 }
             }
         }
