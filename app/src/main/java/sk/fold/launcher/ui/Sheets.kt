@@ -76,6 +76,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -427,8 +428,12 @@ fun FavoritesEditor(ui: LauncherUi, onClose: () -> Unit) {
         return
     }
 
-    val list = remember(s.favorites) { mutableStateListOf<String>().apply { addAll(s.favorites) } }
+    // Jeden stabilný zoznam (gestá si ho pamätajú) – zosynchronizuje sa, keď sa práve neťahá.
+    val list = remember { mutableStateListOf<String>().apply { addAll(s.favorites) } }
     var dragKey by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(s.favorites, dragKey) {
+        if (dragKey == null && list.toList() != s.favorites) { list.clear(); list.addAll(s.favorites) }
+    }
     var dragOff by remember { mutableFloatStateOf(0f) }
     val rowDp = 64.dp
     val rowPx = with(density) { rowDp.toPx() }
@@ -461,8 +466,8 @@ fun FavoritesEditor(ui: LauncherUi, onClose: () -> Unit) {
                         detectDragGestures(
                             onDragStart = { dragKey = k; dragOff = 0f; buzz(haptic, HapticFeedbackType.LongPress) },
                             onDrag = { c, d -> c.consume(); onDrag(k, d.y) },
-                            onDragEnd = { dragKey = null; dragOff = 0f; commit() },
-                            onDragCancel = { dragKey = null; dragOff = 0f; commit() },
+                            onDragEnd = { if (dragKey == k) { dragKey = null; dragOff = 0f; commit() } },
+                            onDragCancel = { if (dragKey == k) { dragKey = null; dragOff = 0f; commit() } },
                         )
                     }
                     Row(
@@ -476,8 +481,8 @@ fun FavoritesEditor(ui: LauncherUi, onClose: () -> Unit) {
                                 detectDragGesturesAfterLongPress(
                                     onDragStart = { dragKey = k; dragOff = 0f; buzz(haptic, HapticFeedbackType.LongPress) },
                                     onDrag = { c, d -> c.consume(); onDrag(k, d.y) },
-                                    onDragEnd = { dragKey = null; dragOff = 0f; commit() },
-                                    onDragCancel = { dragKey = null; dragOff = 0f; commit() },
+                                    onDragEnd = { if (dragKey == k) { dragKey = null; dragOff = 0f; commit() } },
+                                    onDragCancel = { if (dragKey == k) { dragKey = null; dragOff = 0f; commit() } },
                                 )
                             }
                             .padding(horizontal = 8.dp),
@@ -499,6 +504,7 @@ fun FavoritesEditor(ui: LauncherUi, onClose: () -> Unit) {
                             IconButton(onClick = { folderApps = k }) { Icon(Icons.Filled.Apps, "Obsah") }
                         }
                         IconButton(onClick = {
+                            list.remove(k)
                             Store.editSettings { st -> st.copy(favorites = st.favorites - k, favFolders = st.favFolders - k) }
                         }) { Icon(Icons.Filled.Close, "Odobrať") }
                     }
