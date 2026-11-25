@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -87,8 +88,9 @@ fun AppIconImage(a: AppInfo, size: Dp, s: Settings, modifier: Modifier = Modifie
     val dark = LocalDark.current
     val px = IconCache.bucket(with(LocalDensity.current) { size.roundToPx() })
     val k = IconCache.key(a.key, px, s, dark)
+    // Pri zmene aplikácie (napr. po preusporiadaní) sa ikona vždy nahradí – nikdy neostane stará.
     val bmp by produceState<ImageBitmap?>(IconCache.cached(k), k) {
-        if (value == null) value = withContext(Dispatchers.IO) { runCatching { IconCache.app(ctx, a, px, s, dark) }.getOrNull() }
+        value = IconCache.cached(k) ?: withContext(Dispatchers.IO) { runCatching { IconCache.app(ctx, a, px, s, dark) }.getOrNull() }
     }
     val b = bmp
     if (b != null) Image(b, null, modifier.size(size)) else Spacer(modifier.size(size))
@@ -319,7 +321,7 @@ private fun FavoritesView(ui: LauncherUi, s: Settings, hDp: Dp) {
         Modifier.fillMaxSize().then(if (needScroll) Modifier.verticalScroll(rememberScrollState()) else Modifier),
         verticalArrangement = if (needScroll) Arrangement.Top else Arrangement.Center,
     ) {
-        entries.forEach { (k, a) ->
+        entries.forEach { (k, a) -> key(k) {
             val folder = if (a == null) s.favFolders[k] else null
             val count = if (a != null) notifs[a.pkg]?.count ?: 0
             else folder?.apps?.sumOf { key -> apps.firstOrNull { it.key == key }?.let { notifs[it.pkg]?.count } ?: 0 } ?: 0
@@ -341,7 +343,7 @@ private fun FavoritesView(ui: LauncherUi, s: Settings, hDp: Dp) {
                     )
                     val n = a?.let { notifs[it.pkg] }
                     val line = when {
-                        folder != null -> "${folder.apps.size} aplikácií"
+                        folder != null -> ""
                         s.favNotifText && n != null -> listOfNotNull(n.title, n.text).joinToString(" · ")
                         else -> ""
                     }
@@ -351,6 +353,7 @@ private fun FavoritesView(ui: LauncherUi, s: Settings, hDp: Dp) {
                     )
                 }
             }
+        }
         }
     }
 }

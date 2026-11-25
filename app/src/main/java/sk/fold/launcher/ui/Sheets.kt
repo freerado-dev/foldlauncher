@@ -255,6 +255,16 @@ fun AppPicker(title: String, initial: List<String>, onClose: () -> Unit, onDone:
 // ---------------- priečinok ----------------
 
 /** Okno priečinka – rovnaké pre priečinok na ploche aj v obľúbených. */
+/** Tmavé „sklo“ s bielym textom – dobre čitateľné nad tapetou bez ohľadu na tému. */
+private val PopupBg = Color(0xF21C1C20)
+private val PopupText = Color(0xFFF2F2F5)
+private val PopupSub = Color(0xB3F2F2F5)
+
+@Composable
+private fun PopupSurface(content: @Composable () -> Unit) {
+    Surface(shape = RoundedCornerShape(28.dp), color = PopupBg, contentColor = PopupText) { content() }
+}
+
 @Composable
 fun FolderDialog(
     ui: LauncherUi, name: String, keys: List<String>,
@@ -264,7 +274,7 @@ fun FolderDialog(
     val s by Store.settings.collectAsState()
     val inside = remember(apps, keys) { keys.mapNotNull { k -> apps.firstOrNull { it.key == k } } }
     Dialog(onDismissRequest = { ui.sheet = null }) {
-        Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f)) {
+        PopupSurface {
             Column(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).clickable { onRename() })
@@ -272,7 +282,7 @@ fun FolderDialog(
                     IconButton(onClick = onAdd) { Icon(Icons.Filled.Add, "Pridať aplikácie") }
                 }
                 if (inside.isEmpty()) Text("Priečinok je prázdny – pridaj aplikácie tlačidlom +", Modifier.padding(vertical = 24.dp))
-                else Text("Podrž aplikáciu pre odobratie z priečinka", style = MaterialTheme.typography.bodySmall)
+                else Text("Podrž aplikáciu pre odobratie z priečinka", style = MaterialTheme.typography.bodySmall, color = PopupSub)
                 LazyVerticalGrid(columns = GridCells.Adaptive(84.dp), modifier = Modifier.heightIn(max = 460.dp)) {
                     items(inside, key = { it.key }) { a ->
                         var menu by remember { mutableStateOf(false) }
@@ -332,7 +342,7 @@ fun FavFolderSheet(ui: LauncherUi, id: String) {
     val maxH = (LocalConfiguration.current.screenHeightDp * 0.7f).dp
     val ff = LocalFont.current
     Dialog(onDismissRequest = { ui.sheet = null }) {
-        Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f)) {
+        PopupSurface {
             Column(Modifier.padding(vertical = 16.dp)) {
                 Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                     FavFolderIcon(28.dp, s)
@@ -367,7 +377,7 @@ fun FavFolderSheet(ui: LauncherUi, id: String) {
                                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     val line = if (s.favNotifText && n != null) listOfNotNull(n.title, n.text).joinToString(" · ") else ""
                                     if (line.isNotEmpty()) Text(line, fontSize = subSize, fontFamily = ff, maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        overflow = TextOverflow.Ellipsis, color = PopupSub)
                                 }
                             }
                             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -497,7 +507,7 @@ fun FavoritesEditor(ui: LauncherUi, onClose: () -> Unit) {
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(folder?.name ?: a?.let { labelOf(it, s) } ?: k.substringBefore('/'), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            if (folder != null) Text("Priečinok · ${folder.apps.size} aplikácií", style = MaterialTheme.typography.bodySmall)
+                            if (folder != null) Text("Priečinok", style = MaterialTheme.typography.bodySmall)
                         }
                         if (folder != null) {
                             IconButton(onClick = { renameFolder = k }) { Icon(Icons.Filled.Edit, "Premenovať") }

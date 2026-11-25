@@ -8,6 +8,8 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
         <item name="android:enforceNavigationBarContrast">false</item>
+        <!-- Samsung „tmavý režim pre aplikácie“ inak prefarbuje farby a text býva nečitateľný -->
+        <item name="android:forceDarkAllowed">false</item>
         <item name="android:enforceStatusBarContrast">false</item>
     </style>
 </resources>
