@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.zIndex
@@ -99,6 +100,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import sk.fold.launcher.data.AppInfo
 import sk.fold.launcher.data.Apps
+import sk.fold.launcher.data.Badges
 import sk.fold.launcher.data.IconCache
 import sk.fold.launcher.data.ItemType
 import sk.fold.launcher.data.Screen
@@ -313,17 +315,72 @@ fun FolderSheet(ui: LauncherUi, screen: Screen, id: Long) {
     )
 }
 
+/** Priečinok z obľúbených – zoznam v štýle obľúbených, posúvateľný. */
 @Composable
 fun FavFolderSheet(ui: LauncherUi, id: String) {
     val s by Store.settings.collectAsState()
+    val apps by Apps.list.collectAsState()
+    val notifs by Badges.state.collectAsState()
     val f = s.favFolders[id]
     if (f == null) { ui.sheet = null; return }
-    FolderDialog(
-        ui, f.name, f.apps,
-        onRename = { ui.sheet = Sheet.RenameFavFolder(id) },
-        onAdd = { ui.sheet = Sheet.FavFolderApps(id) },
-        onRemoveApp = { k -> editFavFolder(id) { it.copy(apps = it.apps - k) } },
-    )
+    val inside = remember(apps, f.apps) { f.apps.mapNotNull { k -> apps.firstOrNull { it.key == k } } }
+    val iconSize = s.favIconSize.dp
+    val rowH = iconSize + 24.dp
+    val titleSize = (s.favIconSize * 0.6f).coerceIn(13f, 24f).sp
+    val subSize = (s.favIconSize * 0.42f).coerceIn(11f, 15f).sp
+    val maxH = (LocalConfiguration.current.screenHeightDp * 0.7f).dp
+    val ff = LocalFont.current
+    Dialog(onDismissRequest = { ui.sheet = null }) {
+        Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f)) {
+            Column(Modifier.padding(vertical = 16.dp)) {
+                Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    FavFolderIcon(28.dp, s)
+                    Spacer(Modifier.width(12.dp))
+                    Text(f.name, style = MaterialTheme.typography.titleLarge, fontFamily = ff,
+                        modifier = Modifier.weight(1f).clickable { ui.sheet = Sheet.RenameFavFolder(id) })
+                    IconButton(onClick = { ui.sheet = Sheet.RenameFavFolder(id) }) { Icon(Icons.Filled.Edit, "Premenovať") }
+                    IconButton(onClick = { ui.sheet = Sheet.FavFolderApps(id) }) { Icon(Icons.Filled.Add, "Pridať aplikácie") }
+                }
+                if (inside.isEmpty()) Text("Priečinok je prázdny – pridaj aplikácie tlačidlom +", Modifier.padding(24.dp))
+                LazyColumn(Modifier.heightIn(max = maxH).padding(horizontal = 8.dp)) {
+                    items(inside, key = { it.key }) { a ->
+                        var menu by remember { mutableStateOf(false) }
+                        val n = notifs[a.pkg]
+                        Box {
+                            Row(
+                                Modifier.fillMaxWidth().height(rowH).clip(RoundedCornerShape(12.dp))
+                                    .combinedClickable(
+                                        onClick = { Apps.launch(ui.activity, a); ui.sheet = null },
+                                        onLongClick = { menu = true },
+                                    )
+                                    .padding(horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box {
+                                    AppIconImage(a, iconSize, s)
+                                    BadgeMark(n?.count ?: 0, s, Modifier.align(Alignment.TopEnd))
+                                }
+                                Spacer(Modifier.width(20.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(labelOf(a, s), fontSize = titleSize, fontFamily = ff, fontWeight = FontWeight.Medium,
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    val line = if (s.favNotifText && n != null) listOfNotNull(n.title, n.text).joinToString(" · ") else ""
+                                    if (line.isNotEmpty()) Text(line, fontSize = subSize, fontFamily = ff, maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                DropdownMenuItem(text = { Text("Odobrať z priečinka") }, onClick = {
+                                    menu = false; editFavFolder(id) { it.copy(apps = it.apps - a.key) }
+                                })
+                                DropdownMenuItem(text = { Text("Informácie o aplikácii") }, onClick = { menu = false; Apps.details(ui.activity, a) })
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 fun editFavFolder(id: String, f: (FavFolder) -> FavFolder) = Store.editSettings { st ->
@@ -428,7 +485,7 @@ fun FavoritesEditor(ui: LauncherUi, onClose: () -> Unit) {
                     ) {
                         Icon(Icons.Filled.DragHandle, "Presunúť", Modifier.size(40.dp).then(dragMod).padding(8.dp))
                         when {
-                            folder != null -> FolderIconOf(folder.apps, 40.dp, s)
+                            folder != null -> FavFolderIcon(40.dp, s)
                             a != null -> AppIconImage(a, 40.dp, s)
                             else -> Spacer(Modifier.size(40.dp))
                         }

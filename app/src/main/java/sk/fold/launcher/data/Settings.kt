@@ -36,6 +36,11 @@ data class FavFolder(val name: String, val apps: List<String>)
 
 const val FOLDER_PREFIX = "folder:"
 
+val FOLDER_COLORS: List<Long> = listOf(
+    0xFF5B8DEF, 0xFF34C759, 0xFFFF9F0A, 0xFFFF453A, 0xFFBF5AF2,
+    0xFF64D2FF, 0xFFFFD60A, 0xFFAC8E68, 0xFF8E8E93, 0xFFFFFFFF,
+)
+
 val ACCENTS: List<Long> = listOf(
     0xFF0A84FF, 0xFF30D158, 0xFFFF9F0A, 0xFFFF375F,
     0xFFBF5AF2, 0xFF64D2FF, 0xFFFFD60A, 0xFFAC8E68,
@@ -86,4 +91,5 @@ data class Settings(
     val showWork: Boolean = true,
     val favFolders: Map<String, FavFolder> = emptyMap(),
     val favIconSize: Float = 30f,
+    val favFolderColor: Long = 0xFF5B8DEF,
 )

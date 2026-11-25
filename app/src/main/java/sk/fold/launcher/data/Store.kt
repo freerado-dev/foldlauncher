@@ -248,7 +248,7 @@ object Store {
         put("lockPortrait", s.lockPortrait); put("hideNavBar", s.hideNavBar); put("haptics", s.haptics)
         put("animSpeed", s.animSpeed.name); put("drawerSort", s.drawerSort.name)
         put("showRecent", s.showRecent); put("showWork", s.showWork)
-        put("favIcon3", s.favIconSize.toDouble())
+        put("favIcon3", s.favIconSize.toDouble()); put("favFolderColor", s.favFolderColor)
         put("favFolders", JSONObject().apply {
             s.favFolders.forEach { (k, f) -> put(k, JSONObject().put("name", f.name).put("apps", JSONArray(f.apps))) }
         })
@@ -302,6 +302,7 @@ object Store {
             showRecent = o.optBoolean("showRecent", d.showRecent),
             showWork = o.optBoolean("showWork", d.showWork),
             favIconSize = f("favIcon3", d.favIconSize),
+            favFolderColor = o.optLong("favFolderColor", d.favFolderColor),
             favFolders = o.optJSONObject("favFolders")?.let { ff ->
                 ff.keys().asSequence().mapNotNull { k ->
                     val fo = ff.optJSONObject(k) ?: return@mapNotNull null

@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Icon
@@ -181,6 +182,12 @@ private fun IconTile(label: String, s: Settings, wDp: Dp, hDp: Dp, badge: Int, i
 @Composable
 private fun FolderIcon(item: HomeItem, size: Dp, s: Settings) = FolderIconOf(item.apps, size, s)
 
+/** Klasická ikona priečinka pre obľúbené – farba podľa nastavenia. */
+@Composable
+fun FavFolderIcon(size: Dp, s: Settings) {
+    Icon(Icons.Filled.Folder, null, tint = Color(s.favFolderColor), modifier = Modifier.size(size))
+}
+
 /** Ikona priečinka – mriežka 2×2 prvých aplikácií. */
 @Composable
 fun FolderIconOf(keys: List<String>, size: Dp, s: Settings) {
@@ -323,7 +330,7 @@ private fun FavoritesView(ui: LauncherUi, s: Settings, hDp: Dp) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box {
-                    if (a != null) AppIconImage(a, iconSize, s) else FolderIconOf(folder?.apps ?: emptyList(), iconSize, s)
+                    if (a != null) AppIconImage(a, iconSize, s) else FavFolderIcon(iconSize, s)
                     BadgeMark(count, s, Modifier.align(Alignment.TopEnd))
                 }
                 Spacer(Modifier.width(20.dp))

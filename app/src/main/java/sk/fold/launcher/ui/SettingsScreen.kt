@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -55,6 +56,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import sk.fold.launcher.data.ACCENTS
+import sk.fold.launcher.data.FOLDER_COLORS
 import sk.fold.launcher.data.AnimSpeed
 import sk.fold.launcher.data.DrawerSort
 import sk.fold.launcher.data.PageEffect
@@ -308,6 +310,19 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                     ClickRow("Skryté aplikácie", "${s.hidden.size}") { sub = "hidden" }
                     ClickRow("Obľúbené", "${s.favorites.size} položiek – poradie, priečinky") { sub = "fav" }
                     SliderRow("Veľkosť ikon v obľúbených", s.favIconSize, 22f..64f, 20, { "${it.roundToInt()} dp" }) { v -> edit { it.copy(favIconSize = v.roundToInt().toFloat()) } }
+                    Text("Farba priečinkov v obľúbených", Modifier.padding(horizontal = 18.dp, vertical = 6.dp))
+                    FlowRow(Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
+                        FOLDER_COLORS.forEach { c ->
+                            Box(
+                                Modifier.padding(4.dp).size(40.dp).clip(CircleShape)
+                                    .clickable { edit { it.copy(favFolderColor = c) } },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(Icons.Filled.Folder, null, tint = Color(c), modifier = Modifier.size(34.dp))
+                                if (c == s.favFolderColor) Icon(Icons.Filled.Check, null, tint = Color.Black.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
                 }
             }
 
