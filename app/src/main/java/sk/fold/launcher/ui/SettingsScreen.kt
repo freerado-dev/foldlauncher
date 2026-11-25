@@ -191,20 +191,38 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                 item {
                     Group {
                         Text(
-                            "Ak je prepínač sivý a nedá sa zapnúť, Android blokuje toto nastavenie pre aplikácie nainštalované mimo Obchodu Play. " +
-                                "Odblokuješ ho takto: 1) ťukni na „Informácie o aplikácii“ nižšie, 2) vpravo hore ⋮, " +
-                                "3) „Povoliť obmedzené nastavenia“ a potvrď, 4) vráť sa sem a zapni povolenie.",
+                            "Samsung blokuje tieto povolenia pre aplikácie mimo Obchodu Play (sivý prepínač alebo hláška " +
+                                "„Aplikácii bol zamietnutý prístup“). Postup:\n" +
+                                "1) Vypni Automatický blokovač: Nastavenia telefónu → Zabezpečenie a súkromie → Automatický blokovač.\n" +
+                                "2) Informácie o aplikácii (nižšie) → ⋮ vpravo hore → Povoliť obmedzené nastavenia.\n" +
+                                "3) Zapni prístup k notifikáciám a službu gest.\n" +
+                                "4) Automatický blokovač môžeš potom zase zapnúť.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
                         )
-                        ClickRow("1. Informácie o aplikácii", "Tu povolíš obmedzené nastavenia (⋮ vpravo hore)") {
+                        ClickRow("Automatický blokovač", "Otvorí nastavenia zabezpečenia telefónu") {
+                            val ok = runCatching { act.startActivity(Intent("com.samsung.android.sm.ACTION_AUTO_BLOCKER")) }.isSuccess ||
+                                runCatching { act.startActivity(Intent(AndroidSettings.ACTION_SECURITY_SETTINGS)) }.isSuccess
+                            if (!ok) act.toast("Otvor Nastavenia → Zabezpečenie a súkromie → Automatický blokovač")
+                        }
+                        ClickRow("Informácie o aplikácii", "⋮ vpravo hore → Povoliť obmedzené nastavenia") {
                             runCatching {
                                 act.startActivity(Intent(AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + act.packageName)))
                             }
                         }
-                        if (!badgesOn) ClickRow("2. Prístup k notifikáciám", "Odznaky a text notifikácií v obľúbených") { openListenerSettings(act) }
-                        if (!a11yOn) ClickRow("3. Služba gest (Dostupnosť)", "Zamknutie dvojitým ťuknutím, otvorenie hornej lišty") { openA11ySettings(act) }
+                        if (!badgesOn) ClickRow("Prístup k notifikáciám", "Odznaky a text notifikácií v obľúbených") { openListenerSettings(act) }
+                        if (!a11yOn) ClickRow("Služba gest (Dostupnosť)", "Zamknutie dvojitým ťuknutím, otvorenie hornej lišty") { openA11ySettings(act) }
                     }
+                }
+            }
+            if (!a11yOn) item {
+                Group {
+                    val adminOn = remember(tick) { sk.fold.launcher.data.SysActions.adminActive(act) }
+                    ClickRow(
+                        "Náhradné zamykanie (správca zariadenia)",
+                        if (adminOn) "Zapnuté – dvojité ťuknutie zamkne obrazovku"
+                        else "Funguje aj bez služby gest. Po zamknutí môže prvé odomknutie vyžadovať PIN namiesto odtlačku.",
+                    ) { if (!adminOn) sk.fold.launcher.data.SysActions.requestAdmin(act) }
                 }
             }
 
