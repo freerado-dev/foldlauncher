@@ -31,6 +31,11 @@ enum class AnimSpeed(val label: String, val stiffness: Float) {
 
 enum class DrawerSort(val label: String) { ALPHA("Abecedne"), USAGE("Najpoužívanejšie"), INSTALL("Najnovšie") }
 
+/** Priečinok v zozname obľúbených (kľúč v obľúbených má tvar "folder:<id>"). */
+data class FavFolder(val name: String, val apps: List<String>)
+
+const val FOLDER_PREFIX = "folder:"
+
 val ACCENTS: List<Long> = listOf(
     0xFF0A84FF, 0xFF30D158, 0xFFFF9F0A, 0xFFFF375F,
     0xFFBF5AF2, 0xFF64D2FF, 0xFFFFD60A, 0xFFAC8E68,
@@ -79,4 +84,6 @@ data class Settings(
     val drawerSort: DrawerSort = DrawerSort.ALPHA,
     val showRecent: Boolean = true,
     val showWork: Boolean = true,
+    val favFolders: Map<String, FavFolder> = emptyMap(),
+    val favIconSize: Float = 52f,
 )

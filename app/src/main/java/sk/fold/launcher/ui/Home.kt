@@ -91,6 +91,7 @@ import sk.fold.launcher.data.Screen
 import sk.fold.launcher.data.ScreenLayout
 import sk.fold.launcher.data.Settings
 import sk.fold.launcher.data.Store
+import kotlin.math.floor
 import kotlin.math.roundToInt
 
 @Composable
@@ -209,13 +210,22 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
     val items = layout.items.filter { it.page == page }
     val margin = if (screen == Screen.COVER) 14.dp else 6.dp
     BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = margin, vertical = 4.dp)) {
-        val cw = constraints.maxWidth.toFloat() / layout.cols
-        val ch = constraints.maxHeight.toFloat() / layout.rows
-        val cwDp = with(density) { cw.toDp() }
-        val chDp = with(density) { ch.toDp() }
-        LaunchedEffect(cwDp, chDp, screen) {
-            ui.cellW = cwDp.value; ui.cellH = chDp.value
-            Store.cellDp[screen] = cwDp.value to chDp.value
+        // Štvorcové bunky: šírku určujú stĺpce, počet riadkov sa dopočíta podľa výšky.
+        val pageW = constraints.maxWidth.toFloat()
+        val pageH = constraints.maxHeight.toFloat()
+        val cell = pageW / layout.cols
+        val fittedRows = floor(pageH / cell).toInt().coerceAtLeast(1)
+        LaunchedEffect(fittedRows, layout.cols, screen) {
+            if (Store.layout(screen).value.rows != fittedRows) Store.editLayout(screen) { it.withRows(fittedRows) }
+        }
+        val cw = cell
+        val ch = cell
+        val gridH = layout.rows * cell
+        val top = ((pageH - gridH) / 2f).coerceAtLeast(0f)
+        val cellDp = with(density) { cell.toDp() }
+        LaunchedEffect(cellDp, screen) {
+            ui.cellW = cellDp.value; ui.cellH = cellDp.value
+            Store.cellDp[screen] = cellDp.value to cellDp.value
         }
 
         var dragId by remember { mutableStateOf<Long?>(null) }
@@ -224,7 +234,7 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
         var pressMenu by remember { mutableStateOf<Offset?>(null) }
         val sUp by rememberUpdatedState(s)
 
-        // Pozadie: dvojité ťuknutie, dlhé podržanie → úpravy, ťuknutie v úpravách zruší výber.
+        // Pozadie (celá stránka): dvojité ťuknutie, podržanie → menu, ťuknutie v úpravách zruší výber.
         Box(Modifier.fillMaxSize().pointerInput(Unit) {
             detectTapGestures(
                 onDoubleTap = { if (!ui.editMode) ui.gesture(sUp.doubleTap) },
@@ -238,7 +248,6 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
             )
         })
 
-        // Menu po podržaní prázdneho miesta na ploche.
         pressMenu?.let { pos ->
             Box(Modifier.offset { IntOffset(pos.x.roundToInt(), pos.y.roundToInt()) }.size(1.dp)) {
                 DropdownMenu(expanded = true, onDismissRequest = { pressMenu = null }) {
@@ -254,103 +263,137 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
             }
         }
 
-        if (ui.editMode && s.showGrid) {
-            Canvas(Modifier.fillMaxSize()) {
-                val line = Color.White.copy(alpha = 0.16f)
-                for (i in 0..layout.cols) drawLine(line, Offset(i * cw, 0f), Offset(i * cw, size.height), 1f)
-                for (j in 0..layout.rows) drawLine(line, Offset(0f, j * ch), Offset(size.width, j * ch), 1f)
+        Box(
+            Modifier.fillMaxWidth().height(with(density) { gridH.toDp() })
+                .offset { IntOffset(0, top.roundToInt()) }
+        ) {
+            if (ui.editMode && s.showGrid) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val line = Color.White.copy(alpha = 0.16f)
+                    for (i in 0..layout.cols) drawLine(line, Offset(i * cw, 0f), Offset(i * cw, gridH), 1f)
+                    for (j in 0..layout.rows) drawLine(line, Offset(0f, j * ch), Offset(pageW, j * ch), 1f)
+                }
             }
-        }
 
-        fun targetOf(item: HomeItem): Cell {
-            val c = item.cell
-            val nx = ((c.x * cw + dragOffset.x) / cw).roundToInt().coerceIn(0, layout.cols - c.w)
-            val ny = ((c.y * ch + dragOffset.y) / ch).roundToInt().coerceIn(0, layout.rows - c.h)
-            return Cell(nx, ny, c.w, c.h)
-        }
-
-        // Náhľad cieľovej pozície pri ťahaní / zmene veľkosti.
-        val ghost: Pair<Cell, Boolean>? = when {
-            dragId != null -> items.find { it.id == dragId }?.let { i ->
-                val t = targetOf(i); t to layout.isFree(page, t, i.id)
+            fun targetOf(item: HomeItem): Cell {
+                val c = item.cell
+                val nx = ((c.x * cw + dragOffset.x) / cw).roundToInt().coerceIn(0, layout.cols - c.w)
+                val ny = ((c.y * ch + dragOffset.y) / ch).roundToInt().coerceIn(0, layout.rows - c.h)
+                return Cell(nx, ny, c.w, c.h)
             }
-            resize != null && ui.selectedId != null -> resize!! to layout.isFree(page, resize!!, ui.selectedId)
-            else -> null
-        }
-        ghost?.let { (c, ok) ->
-            Box(
-                Modifier.offset { IntOffset((c.x * cw).roundToInt(), (c.y * ch).roundToInt()) }
-                    .size(with(density) { (c.w * cw).toDp() }, with(density) { (c.h * ch).toDp() })
-                    .padding(2.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background((if (ok) Color.White else Color(0xFFFF453A)).copy(alpha = 0.22f))
-                    .border(1.5.dp, (if (ok) Color.White else Color(0xFFFF453A)).copy(alpha = 0.8f), RoundedCornerShape(14.dp))
-            )
-        }
 
-        items.forEach { item ->
-            key(item.id) {
-                val selected = ui.editMode && ui.selectedId == item.id
-                val rect = if (selected && resize != null) resize!! else item.cell
-                val isDragged = dragId == item.id
-                ItemFrame(
-                    ui = ui, item = item, s = s, rect = rect, cw = cw, ch = ch,
-                    dragOffset = if (isDragged) dragOffset else Offset.Zero,
-                    dragged = isDragged, selected = selected,
-                    onDragStart = {
-                        ui.selectedId = item.id
-                        dragId = item.id; dragOffset = Offset.Zero; onDragging(true)
-                    },
-                    onDrag = { d -> dragOffset += d },
-                    onDragEnd = { commit ->
-                        if (commit) {
-                            val cur = Store.layout(screen).value
-                            val it2 = cur.items.find { it.id == item.id }
-                            if (it2 != null) {
-                                val t = targetOf(it2)
-                                if (cur.isFree(page, t, it2.id)) Store.editLayout(screen) { l -> l.update(it2.id) { x -> x.at(t) } }
-                                else buzz(haptic, HapticFeedbackType.LongPress)
-                            }
-                        }
-                        dragId = null; dragOffset = Offset.Zero; onDragging(false)
-                    },
+            /** Ikona alebo priečinok pod stredom ťahanej ikony – pustením vznikne / doplní sa priečinok. */
+            fun folderTargetOf(item: HomeItem, all: List<HomeItem>): HomeItem? {
+                if (item.type != ItemType.APP) return null
+                val cx = (item.x + item.w / 2f) * cw + dragOffset.x
+                val cy = (item.y + item.h / 2f) * ch + dragOffset.y
+                return all.firstOrNull { o ->
+                    o.id != item.id && o.page == page && (o.type == ItemType.APP || o.type == ItemType.FOLDER) &&
+                        cx >= o.x * cw && cx < (o.x + o.w) * cw && cy >= o.y * ch && cy < (o.y + o.h) * ch
+                }
+            }
+
+            // Náhľad: cieľ presunu, alebo zvýraznenie budúceho priečinka.
+            val dragged = items.find { it.id == dragId }
+            val folderTarget = dragged?.let { folderTargetOf(it, items) }
+            if (folderTarget != null) {
+                val c = folderTarget.cell
+                Box(
+                    Modifier.offset { IntOffset((c.x * cw).roundToInt(), (c.y * ch).roundToInt()) }
+                        .size(with(density) { (c.w * cw).toDp() }, with(density) { (c.h * ch).toDp() })
+                        .padding(3.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                        .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(22.dp))
                 )
+            } else {
+                val ghost: Pair<Cell, Boolean>? = when {
+                    dragged != null -> targetOf(dragged).let { t -> t to layout.isFree(page, t, dragged.id) }
+                    resize != null && ui.selectedId != null -> resize!! to layout.isFree(page, resize!!, ui.selectedId)
+                    else -> null
+                }
+                ghost?.let { (c, ok) ->
+                    Box(
+                        Modifier.offset { IntOffset((c.x * cw).roundToInt(), (c.y * ch).roundToInt()) }
+                            .size(with(density) { (c.w * cw).toDp() }, with(density) { (c.h * ch).toDp() })
+                            .padding(2.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background((if (ok) Color.White else Color(0xFFFF453A)).copy(alpha = 0.22f))
+                            .border(1.5.dp, (if (ok) Color.White else Color(0xFFFF453A)).copy(alpha = 0.8f), RoundedCornerShape(14.dp))
+                    )
+                }
             }
-        }
 
-        // Úchyty na zmenu veľkosti po bunkách.
-        val sel = items.find { it.id == ui.selectedId }
-        if (ui.editMode && sel != null && dragId == null) {
-            val r = resize ?: sel.cell
-            Edge.entries.forEach { edge ->
-                key(sel.id, edge) {
-                    ResizeHandle(
-                        edge = edge, rect = r, cw = cw, ch = ch,
-                        pageW = constraints.maxWidth.toFloat(), pageH = constraints.maxHeight.toFloat(),
-                        onStart = { resize = sel.cell; onDragging(true) },
-                        onResize = { acc ->
-                            val st = sel.cell
-                            val dx = (acc.x / cw).roundToInt()
-                            val dy = (acc.y / ch).roundToInt()
-                            val n = when (edge) {
-                                Edge.LEFT -> { val nx = (st.x + dx).coerceIn(0, st.x + st.w - 1); Cell(nx, st.y, st.x + st.w - nx, st.h) }
-                                Edge.TOP -> { val ny = (st.y + dy).coerceIn(0, st.y + st.h - 1); Cell(st.x, ny, st.w, st.y + st.h - ny) }
-                                Edge.RIGHT -> st.copy(w = (st.w + dx).coerceIn(1, layout.cols - st.x))
-                                Edge.BOTTOM -> st.copy(h = (st.h + dy).coerceIn(1, layout.rows - st.y))
-                                Edge.CORNER -> st.copy(w = (st.w + dx).coerceIn(1, layout.cols - st.x), h = (st.h + dy).coerceIn(1, layout.rows - st.y))
-                            }
-                            if (n != resize) buzz(haptic, HapticFeedbackType.TextHandleMove)
-                            resize = n
+            items.forEach { item ->
+                key(item.id) {
+                    val selected = ui.editMode && ui.selectedId == item.id
+                    val rect = if (selected && resize != null) resize!! else item.cell
+                    val isDragged = dragId == item.id
+                    ItemFrame(
+                        ui = ui, item = item, s = s, rect = rect, cw = cw, ch = ch,
+                        dragOffset = if (isDragged) dragOffset else Offset.Zero,
+                        dragged = isDragged, selected = selected,
+                        onDragStart = {
+                            ui.selectedId = item.id
+                            dragId = item.id; dragOffset = Offset.Zero; onDragging(true)
                         },
-                        onEnd = {
-                            val n = resize
-                            if (n != null && n != sel.cell) {
-                                if (Store.layout(screen).value.isFree(page, n, sel.id)) Store.editLayout(screen) { l -> l.update(sel.id) { it.at(n) } }
-                                else buzz(haptic, HapticFeedbackType.LongPress)
+                        onDrag = { d -> dragOffset += d },
+                        onDragEnd = { commit ->
+                            if (commit) {
+                                val cur = Store.layout(screen).value
+                                val it2 = cur.items.find { it.id == item.id }
+                                if (it2 != null) {
+                                    val ft = folderTargetOf(it2, cur.items)
+                                    if (ft != null) {
+                                        buzz(haptic, HapticFeedbackType.LongPress)
+                                        ui.dropIntoFolder(it2, ft)
+                                    } else {
+                                        val t = targetOf(it2)
+                                        if (cur.isFree(page, t, it2.id)) Store.editLayout(screen) { l -> l.update(it2.id) { x -> x.at(t) } }
+                                        else buzz(haptic, HapticFeedbackType.LongPress)
+                                    }
+                                }
                             }
-                            resize = null; onDragging(false)
+                            dragId = null; dragOffset = Offset.Zero; onDragging(false)
                         },
                     )
+                }
+            }
+
+            // Úchyty na zmenu veľkosti po bunkách.
+            val sel = items.find { it.id == ui.selectedId }
+            if (ui.editMode && sel != null && dragId == null) {
+                val r = resize ?: sel.cell
+                Edge.entries.forEach { edge ->
+                    key(sel.id, edge) {
+                        ResizeHandle(
+                            edge = edge, rect = r, cw = cw, ch = ch,
+                            pageW = pageW, pageH = gridH,
+                            onStart = { resize = sel.cell; onDragging(true) },
+                            onResize = { acc ->
+                                val st = sel.cell
+                                val dx = (acc.x / cw).roundToInt()
+                                val dy = (acc.y / ch).roundToInt()
+                                val n = when (edge) {
+                                    Edge.LEFT -> { val nx = (st.x + dx).coerceIn(0, st.x + st.w - 1); Cell(nx, st.y, st.x + st.w - nx, st.h) }
+                                    Edge.TOP -> { val ny = (st.y + dy).coerceIn(0, st.y + st.h - 1); Cell(st.x, ny, st.w, st.y + st.h - ny) }
+                                    Edge.RIGHT -> st.copy(w = (st.w + dx).coerceIn(1, layout.cols - st.x))
+                                    Edge.BOTTOM -> st.copy(h = (st.h + dy).coerceIn(1, layout.rows - st.y))
+                                    Edge.CORNER -> st.copy(w = (st.w + dx).coerceIn(1, layout.cols - st.x), h = (st.h + dy).coerceIn(1, layout.rows - st.y))
+                                }
+                                if (n != resize) buzz(haptic, HapticFeedbackType.TextHandleMove)
+                                resize = n
+                            },
+                            onEnd = {
+                                val n = resize
+                                if (n != null && n != sel.cell) {
+                                    if (Store.layout(screen).value.isFree(page, n, sel.id)) Store.editLayout(screen) { l -> l.update(sel.id) { it.at(n) } }
+                                    else buzz(haptic, HapticFeedbackType.LongPress)
+                                }
+                                resize = null; onDragging(false)
+                            },
+                        )
+                    }
                 }
             }
         }

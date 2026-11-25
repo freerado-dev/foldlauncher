@@ -118,7 +118,7 @@ object Store {
     }
 
     fun resetSettings() = editSettings {
-        Settings(initialized = true, favorites = it.favorites, hidden = it.hidden, renames = it.renames)
+        Settings(initialized = true, favorites = it.favorites, hidden = it.hidden, renames = it.renames, favFolders = it.favFolders)
     }
 
     fun ensureDefaults(favs: List<String>) {
@@ -248,6 +248,10 @@ object Store {
         put("lockPortrait", s.lockPortrait); put("hideNavBar", s.hideNavBar); put("haptics", s.haptics)
         put("animSpeed", s.animSpeed.name); put("drawerSort", s.drawerSort.name)
         put("showRecent", s.showRecent); put("showWork", s.showWork)
+        put("favIconSize", s.favIconSize.toDouble())
+        put("favFolders", JSONObject().apply {
+            s.favFolders.forEach { (k, f) -> put(k, JSONObject().put("name", f.name).put("apps", JSONArray(f.apps))) }
+        })
     }
 
     private fun settingsFromJson(o: JSONObject): Settings {
@@ -297,6 +301,14 @@ object Store {
             drawerSort = en(o.str("drawerSort"), d.drawerSort),
             showRecent = o.optBoolean("showRecent", d.showRecent),
             showWork = o.optBoolean("showWork", d.showWork),
+            favIconSize = f("favIconSize", d.favIconSize),
+            favFolders = o.optJSONObject("favFolders")?.let { ff ->
+                ff.keys().asSequence().mapNotNull { k ->
+                    val fo = ff.optJSONObject(k) ?: return@mapNotNull null
+                    val a = fo.optJSONArray("apps") ?: JSONArray()
+                    k to FavFolder(fo.optString("name", "Priečinok"), List(a.length()) { a.getString(it) })
+                }.toMap()
+            } ?: emptyMap(),
         )
     }
 }

@@ -151,7 +151,7 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
     var sub by remember { mutableStateOf<String?>(null) }
     BackHandler { if (sub != null) sub = null else onClose() }
     when (sub) {
-        "fav" -> { FavoritesEditor { sub = null }; return }
+        "fav" -> { FavoritesEditor(ui) { sub = null }; return }
         "hidden" -> { HiddenApps { sub = null }; return }
         "pack" -> { IconPackPicker { sub = null }; return }
     }
@@ -211,21 +211,15 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                 Group {
                     Text(
                         "Aktuálne: ${if (screen == Screen.COVER) "vonkajší" else "vnútorný"} displej. Každý displej má vlastné rozloženie. " +
-                            "Pri zmene hustoty sa prvky prepočítajú pomerne.",
+                            "Bunky sú štvorcové – počet riadkov sa dopočíta podľa výšky displeja. Pri zmene hustoty sa prvky prepočítajú pomerne.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
                     )
-                    SliderRow("Vonkajší displej – stĺpce", cover.cols.toFloat(), 3f..16f, 12, { "${it.roundToInt()}" }) { v ->
-                        Store.editLayout(Screen.COVER) { it.rescale(v.roundToInt(), it.rows) }
+                    SliderRow("Vonkajší displej – stĺpce", cover.cols.toFloat(), 3f..16f, 12, { "${it.roundToInt()} (riadkov ${cover.rows})" }) { v ->
+                        Store.editLayout(Screen.COVER) { it.rescale(v.roundToInt(), (it.rows * v / it.cols).roundToInt().coerceAtLeast(1)) }
                     }
-                    SliderRow("Vonkajší displej – riadky", cover.rows.toFloat(), 4f..30f, 25, { "${it.roundToInt()}" }) { v ->
-                        Store.editLayout(Screen.COVER) { it.rescale(it.cols, v.roundToInt()) }
-                    }
-                    SliderRow("Vnútorný displej – stĺpce", inner.cols.toFloat(), 4f..28f, 23, { "${it.roundToInt()}" }) { v ->
-                        Store.editLayout(Screen.INNER) { it.rescale(v.roundToInt(), it.rows) }
-                    }
-                    SliderRow("Vnútorný displej – riadky", inner.rows.toFloat(), 4f..28f, 23, { "${it.roundToInt()}" }) { v ->
-                        Store.editLayout(Screen.INNER) { it.rescale(it.cols, v.roundToInt()) }
+                    SliderRow("Vnútorný displej – stĺpce", inner.cols.toFloat(), 4f..28f, 23, { "${it.roundToInt()} (riadkov ${inner.rows})" }) { v ->
+                        Store.editLayout(Screen.INNER) { it.rescale(v.roundToInt(), (it.rows * v / it.cols).roundToInt().coerceAtLeast(1)) }
                     }
                     SwitchRow("Zobraziť mriežku pri úpravách", checked = s.showGrid) { v -> edit { it.copy(showGrid = v) } }
                     SwitchRow("Zamknúť rozloženie", "Zabráni náhodnému presunu", s.lockLayout) { v -> edit { it.copy(lockLayout = v) } }
@@ -306,7 +300,8 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                     SliderRow("Veľkosť ikon", s.drawerIconSize, 28f..64f, 8, { "${it.roundToInt()} dp" }) { v -> edit { it.copy(drawerIconSize = v.roundToInt().toFloat()) } }
                     SliderRow("Nepriehľadnosť pozadia", s.drawerAlpha, 0.3f..1f, 0, { "${(it * 100).roundToInt()} %" }) { v -> edit { it.copy(drawerAlpha = v) } }
                     ClickRow("Skryté aplikácie", "${s.hidden.size}") { sub = "hidden" }
-                    ClickRow("Obľúbené", "${s.favorites.size} aplikácií") { sub = "fav" }
+                    ClickRow("Obľúbené", "${s.favorites.size} položiek – poradie, priečinky") { sub = "fav" }
+                    SliderRow("Veľkosť ikon v obľúbených", s.favIconSize, 36f..80f, 10, { "${it.roundToInt()} dp" }) { v -> edit { it.copy(favIconSize = v.roundToInt().toFloat()) } }
                 }
             }
 

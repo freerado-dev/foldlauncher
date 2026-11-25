@@ -61,6 +61,7 @@ import sk.fold.launcher.data.Apps
 import sk.fold.launcher.data.BadgeStyle
 import sk.fold.launcher.data.Badges
 import sk.fold.launcher.data.ClockStyle
+import sk.fold.launcher.data.FOLDER_PREFIX
 import sk.fold.launcher.data.HomeItem
 import sk.fold.launcher.data.IconCache
 import sk.fold.launcher.data.ItemType
@@ -142,11 +143,16 @@ fun ItemContent(ui: LauncherUi, item: HomeItem, s: Settings, wDp: Dp, hDp: Dp, d
 
 @Composable
 private fun IconTile(label: String, s: Settings, wDp: Dp, hDp: Dp, badge: Int, icon: @Composable (Dp) -> Unit) {
-    val labelH = (s.labelSize * 1.45f + 4f).dp
-    val showLabel = s.showLabels && hDp - labelH >= 28.dp
-    val avail = if (showLabel) minOf(wDp, hDp - labelH) else minOf(wDp, hDp)
-    val iconSize = (avail * s.iconScale).coerceAtLeast(16.dp)
-    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+    // Zvislý odstup, aby ikony neboli nalepené nad sebou.
+    val pad = hDp * 0.08f
+    val labelH = (s.labelSize * 1.45f + 3f).dp
+    val showLabel = s.showLabels && hDp - labelH - pad * 2 >= 24.dp
+    val availH = hDp - pad * 2 - (if (showLabel) labelH + 3.dp else 0.dp)
+    val iconSize = minOf(wDp * s.iconScale, availH).coerceAtLeast(16.dp)
+    Column(
+        Modifier.fillMaxSize().padding(vertical = pad),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
+    ) {
         Box {
             icon(iconSize)
             BadgeMark(badge, s, Modifier.align(Alignment.TopEnd).offset(x = 2.dp, y = (-2).dp))
@@ -163,9 +169,13 @@ private fun IconTile(label: String, s: Settings, wDp: Dp, hDp: Dp, badge: Int, i
 }
 
 @Composable
-private fun FolderIcon(item: HomeItem, size: Dp, s: Settings) {
+private fun FolderIcon(item: HomeItem, size: Dp, s: Settings) = FolderIconOf(item.apps, size, s)
+
+/** Ikona priečinka – mriežka 2×2 prvých aplikácií. */
+@Composable
+fun FolderIconOf(keys: List<String>, size: Dp, s: Settings) {
     val apps by Apps.list.collectAsState()
-    val inside = remember(apps, item.apps) { item.apps.mapNotNull { k -> apps.firstOrNull { it.key == k } }.take(4) }
+    val inside = remember(apps, keys) { keys.mapNotNull { k -> apps.firstOrNull { it.key == k } }.take(4) }
     Box(
         Modifier.size(size).clip(RoundedCornerShape(size * 0.28f)).background(Color.White.copy(alpha = 0.28f)).padding(size * 0.12f),
     ) {
@@ -261,14 +271,19 @@ private fun ClockView(s: Settings, wDp: Dp, hDp: Dp) {
     }
 }
 
-/** Zoznam obľúbených v štýle Niagara – ikona, názov a posledná notifikácia. */
+/** Zoznam obľúbených v štýle Niagara – ikona, názov a posledná notifikácia; priečinky; posúvanie keď sa nezmestí. */
 @Composable
 private fun FavoritesView(ui: LauncherUi, s: Settings, hDp: Dp) {
     val apps by Apps.list.collectAsState()
     val notifs by Badges.state.collectAsState()
-    val favs = remember(apps, s.favorites) { s.favorites.mapNotNull { k -> apps.firstOrNull { it.key == k } } }
+    val entries = remember(apps, s.favorites, s.favFolders) {
+        s.favorites.mapNotNull { k ->
+            if (k.startsWith(FOLDER_PREFIX)) s.favFolders[k]?.let { k to null }
+            else apps.firstOrNull { it.key == k }?.let { k to it }
+        }
+    }
     val ff = LocalFont.current
-    if (favs.isEmpty()) {
+    if (entries.isEmpty()) {
         Box(Modifier.fillMaxSize().padding(8.dp), contentAlignment = Alignment.Center) {
             Text(
                 "Obľúbené sú prázdne.\nV zozname aplikácií podrž aplikáciu → Do obľúbených.",
@@ -277,33 +292,43 @@ private fun FavoritesView(ui: LauncherUi, s: Settings, hDp: Dp) {
         }
         return
     }
-    val rowH = (hDp / favs.size).coerceIn(40.dp, 76.dp)
-    // Posúvanie len keď sa zoznam nezmestí – inak zvislé potiahnutie patrí ploche (zoznam / notifikácie).
-    val overflow = hDp / favs.size < 40.dp
+    val iconSize = s.favIconSize.dp
+    val rowH = iconSize + 18.dp
+    val titleSize = (s.favIconSize * 0.38f).coerceIn(15f, 26f).sp
+    val subSize = (s.favIconSize * 0.24f).coerceIn(11f, 16f).sp
+    val needScroll = rowH * entries.size > hDp
     Column(
-        Modifier.fillMaxSize().then(if (overflow) Modifier.verticalScroll(rememberScrollState()) else Modifier),
-        verticalArrangement = Arrangement.Center,
+        Modifier.fillMaxSize().then(if (needScroll) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+        verticalArrangement = if (needScroll) Arrangement.Top else Arrangement.Center,
     ) {
-        favs.forEach { a ->
-            val n = notifs[a.pkg]
+        entries.forEach { (k, a) ->
+            val folder = if (a == null) s.favFolders[k] else null
+            val count = if (a != null) notifs[a.pkg]?.count ?: 0
+            else folder?.apps?.sumOf { key -> apps.firstOrNull { it.key == key }?.let { notifs[it.pkg]?.count } ?: 0 } ?: 0
             Row(
-                Modifier.fillMaxWidth().height(rowH).clip(RoundedCornerShape(14.dp))
-                    .clickable { Apps.launch(ui.activity, a) }.padding(horizontal = 8.dp),
+                Modifier.fillMaxWidth().height(rowH).clip(RoundedCornerShape(16.dp))
+                    .clickable { if (a != null) Apps.launch(ui.activity, a) else ui.sheet = Sheet.FavFolder(k) }
+                    .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box {
-                    AppIconImage(a, rowH * 0.6f, s)
-                    BadgeMark(n?.count ?: 0, s, Modifier.align(Alignment.TopEnd))
+                    if (a != null) AppIconImage(a, iconSize, s) else FolderIconOf(folder?.apps ?: emptyList(), iconSize, s)
+                    BadgeMark(count, s, Modifier.align(Alignment.TopEnd))
                 }
-                Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        labelOf(a, s), style = labelStyle(s, (rowH.value * 0.3f).coerceIn(14f, 24f).sp),
+                        if (a != null) labelOf(a, s) else folder?.name ?: "", style = labelStyle(s, titleSize),
                         fontFamily = ff, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
-                    val line = if (s.favNotifText && n != null) listOfNotNull(n.title, n.text).joinToString(" · ") else ""
+                    val n = a?.let { notifs[it.pkg] }
+                    val line = when {
+                        folder != null -> "${folder.apps.size} aplikácií"
+                        s.favNotifText && n != null -> listOfNotNull(n.title, n.text).joinToString(" · ")
+                        else -> ""
+                    }
                     if (line.isNotEmpty()) Text(
-                        line, style = labelStyle(s, (rowH.value * 0.19f).coerceIn(11f, 15f).sp, Color.White.copy(alpha = 0.85f)),
+                        line, style = labelStyle(s, subSize, Color.White.copy(alpha = 0.85f)),
                         fontFamily = ff, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
                 }

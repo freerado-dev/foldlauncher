@@ -33,6 +33,9 @@ sealed interface Sheet {
     data class Rename(val key: String) : Sheet
     data class RenameItem(val id: Long) : Sheet
     data object RemovePage : Sheet
+    data class FavFolder(val id: String) : Sheet
+    data class FavFolderApps(val id: String) : Sheet
+    data class RenameFavFolder(val id: String) : Sheet
 }
 
 /** Stav používateľského rozhrania launchera. */
@@ -187,6 +190,22 @@ class LauncherUi(val activity: MainActivity) {
         val (w, h) = Store.appSpan(screen)
         showPage(Store.add(screen, HomeItem(Store.newId(), ItemType.SHORTCUT, page, 0, 0, w, h,
             shortcutId = sc.id, pkg = sc.`package`, serial = Apps.serialOf(sc.userHandle), label = sc.shortLabel?.toString()), page))
+    }
+
+    /** Ikona pustená na inú ikonu → nový priečinok (s výzvou na názov), na priečinok → pridá sa doň. */
+    fun dropIntoFolder(dragged: HomeItem, target: HomeItem) {
+        val app = dragged.app ?: return
+        if (target.type == ItemType.FOLDER) {
+            Store.editLayout(screen) { l -> l.remove(dragged.id).update(target.id) { f -> f.copy(apps = (f.apps + app).distinct()) } }
+            activity.toast("Pridané do priečinka ${target.label ?: ""}".trim())
+        } else {
+            val id = Store.newId()
+            val folder = HomeItem(id, ItemType.FOLDER, target.page, target.x, target.y, target.w, target.h,
+                label = "Priečinok", apps = listOfNotNull(target.app, app).distinct())
+            Store.editLayout(screen) { l -> l.remove(dragged.id).remove(target.id).let { it.copy(items = it.items + folder) } }
+            selectedId = id
+            sheet = Sheet.RenameItem(id)
+        }
     }
 
     fun remove(item: HomeItem) {

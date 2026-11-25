@@ -1,9 +1,33 @@
+@file:OptIn(ExperimentalFoundationApi::class)
+
 package sk.fold.launcher.ui
 
 import android.appwidget.AppWidgetProviderInfo
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.zIndex
+import sk.fold.launcher.data.FOLDER_PREFIX
+import sk.fold.launcher.data.FavFolder
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -227,37 +251,47 @@ fun AppPicker(title: String, initial: List<String>, onClose: () -> Unit, onDone:
 
 // ---------------- priečinok ----------------
 
+/** Okno priečinka – rovnaké pre priečinok na ploche aj v obľúbených. */
 @Composable
-fun FolderSheet(ui: LauncherUi, screen: Screen, id: Long) {
-    val layout by Store.layout(screen).collectAsState()
+fun FolderDialog(
+    ui: LauncherUi, name: String, keys: List<String>,
+    onRename: () -> Unit, onAdd: () -> Unit, onRemoveApp: (String) -> Unit,
+) {
     val apps by Apps.list.collectAsState()
     val s by Store.settings.collectAsState()
-    val item = layout.items.find { it.id == id }
-    if (item == null) { ui.sheet = null; return }
-    val inside = remember(apps, item.apps) { item.apps.mapNotNull { k -> apps.firstOrNull { it.key == k } } }
+    val inside = remember(apps, keys) { keys.mapNotNull { k -> apps.firstOrNull { it.key == k } } }
     Dialog(onDismissRequest = { ui.sheet = null }) {
         Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f)) {
             Column(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(item.label ?: "Priečinok", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { ui.sheet = Sheet.RenameItem(id) }) { Icon(Icons.Filled.Edit, "Premenovať") }
-                    IconButton(onClick = { ui.sheet = Sheet.FolderApps(id) }) { Icon(Icons.Filled.Add, "Pridať") }
+                    Text(name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).clickable { onRename() })
+                    IconButton(onClick = onRename) { Icon(Icons.Filled.Edit, "Premenovať") }
+                    IconButton(onClick = onAdd) { Icon(Icons.Filled.Add, "Pridať aplikácie") }
                 }
                 if (inside.isEmpty()) Text("Priečinok je prázdny – pridaj aplikácie tlačidlom +", Modifier.padding(vertical = 24.dp))
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(84.dp),
-                    modifier = Modifier.heightIn(max = 460.dp),
-                ) {
+                else Text("Podrž aplikáciu pre odobratie z priečinka", style = MaterialTheme.typography.bodySmall)
+                LazyVerticalGrid(columns = GridCells.Adaptive(84.dp), modifier = Modifier.heightIn(max = 460.dp)) {
                     items(inside, key = { it.key }) { a ->
-                        Column(
-                            Modifier.clip(RoundedCornerShape(14.dp)).clickable { Apps.launch(ui.activity, a); ui.sheet = null }
-                                .padding(vertical = 10.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            AppIconImage(a, 52.dp, s)
-                            Spacer(Modifier.height(4.dp))
-                            Text(labelOf(a, s), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 2.dp))
+                        var menu by remember { mutableStateOf(false) }
+                        Box {
+                            Column(
+                                Modifier.clip(RoundedCornerShape(14.dp))
+                                    .combinedClickable(
+                                        onClick = { Apps.launch(ui.activity, a); ui.sheet = null },
+                                        onLongClick = { menu = true },
+                                    )
+                                    .padding(vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                AppIconImage(a, 52.dp, s)
+                                Spacer(Modifier.height(4.dp))
+                                Text(labelOf(a, s), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 2.dp))
+                            }
+                            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                DropdownMenuItem(text = { Text("Odobrať z priečinka") }, onClick = { menu = false; onRemoveApp(a.key) })
+                                DropdownMenuItem(text = { Text("Informácie o aplikácii") }, onClick = { menu = false; Apps.details(ui.activity, a) })
+                            }
                         }
                     }
                 }
@@ -266,55 +300,170 @@ fun FolderSheet(ui: LauncherUi, screen: Screen, id: Long) {
     }
 }
 
-// ---------------- obľúbené ----------------
+@Composable
+fun FolderSheet(ui: LauncherUi, screen: Screen, id: Long) {
+    val layout by Store.layout(screen).collectAsState()
+    val item = layout.items.find { it.id == id }
+    if (item == null) { ui.sheet = null; return }
+    FolderDialog(
+        ui, item.label ?: "Priečinok", item.apps,
+        onRename = { ui.sheet = Sheet.RenameItem(id) },
+        onAdd = { ui.sheet = Sheet.FolderApps(id) },
+        onRemoveApp = { k -> Store.editLayout(screen) { l -> l.update(id) { it.copy(apps = it.apps - k) } } },
+    )
+}
 
 @Composable
-fun FavoritesEditor(onClose: () -> Unit) {
+fun FavFolderSheet(ui: LauncherUi, id: String) {
+    val s by Store.settings.collectAsState()
+    val f = s.favFolders[id]
+    if (f == null) { ui.sheet = null; return }
+    FolderDialog(
+        ui, f.name, f.apps,
+        onRename = { ui.sheet = Sheet.RenameFavFolder(id) },
+        onAdd = { ui.sheet = Sheet.FavFolderApps(id) },
+        onRemoveApp = { k -> editFavFolder(id) { it.copy(apps = it.apps - k) } },
+    )
+}
+
+fun editFavFolder(id: String, f: (FavFolder) -> FavFolder) = Store.editSettings { st ->
+    val cur = st.favFolders[id] ?: return@editSettings st
+    st.copy(favFolders = st.favFolders + (id to f(cur)))
+}
+
+/** Vytvorí priečinok v obľúbených a vráti jeho kľúč. */
+fun newFavFolder(name: String): String {
+    val id = FOLDER_PREFIX + Store.newId()
+    Store.editSettings { st -> st.copy(favorites = st.favorites + id, favFolders = st.favFolders + (id to FavFolder(name, emptyList()))) }
+    return id
+}
+
+// ---------------- obľúbené ----------------
+
+/** Úprava obľúbených – poradie sa mení ťahaním (podrž riadok alebo ťahaj za úchyt). */
+@Composable
+fun FavoritesEditor(ui: LauncherUi, onClose: () -> Unit) {
     val s by Store.settings.collectAsState()
     val apps by Apps.list.collectAsState()
+    val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
     var picking by remember { mutableStateOf(false) }
+    var newFolder by remember { mutableStateOf(false) }
+    var folderApps by remember { mutableStateOf<String?>(null) }
+    var renameFolder by remember { mutableStateOf<String?>(null) }
+
     if (picking) {
-        AppPicker("Obľúbené aplikácie", s.favorites, onClose = { picking = false }) { keys ->
-            // zachová poradie existujúcich, nové pridá na koniec
-            Store.editSettings { st -> st.copy(favorites = st.favorites.filter { it in keys } + keys.filter { it !in st.favorites }) }
+        AppPicker("Obľúbené aplikácie", s.favorites.filterNot { it.startsWith(FOLDER_PREFIX) }, onClose = { picking = false }) { keys ->
+            // zachová poradie a priečinky, nové aplikácie pridá na koniec
+            Store.editSettings { st ->
+                st.copy(favorites = st.favorites.filter { it.startsWith(FOLDER_PREFIX) || it in keys } + keys.filter { it !in st.favorites })
+            }
             picking = false
         }
         return
     }
+    folderApps?.let { fid ->
+        AppPicker("Obsah priečinka", s.favFolders[fid]?.apps ?: emptyList(), onClose = { folderApps = null }) { keys ->
+            editFavFolder(fid) { it.copy(apps = keys) }
+            folderApps = null
+        }
+        return
+    }
+
+    val list = remember(s.favorites) { mutableStateListOf<String>().apply { addAll(s.favorites) } }
+    var dragKey by remember { mutableStateOf<String?>(null) }
+    var dragOff by remember { mutableFloatStateOf(0f) }
+    val rowDp = 64.dp
+    val rowPx = with(density) { rowDp.toPx() }
+    fun commit() { Store.editSettings { it.copy(favorites = list.toList()) } }
+    fun onDrag(k: String, dy: Float) {
+        dragOff += dy
+        val i = list.indexOf(k)
+        if (dragOff > rowPx / 2 && i in 0 until list.size - 1) {
+            list.swapAt(i, i + 1); dragOff -= rowPx; buzz(haptic, HapticFeedbackType.TextHandleMove)
+        } else if (dragOff < -rowPx / 2 && i > 0) {
+            list.swapAt(i, i - 1); dragOff += rowPx; buzz(haptic, HapticFeedbackType.TextHandleMove)
+        }
+    }
+
     FullSheet("Obľúbené", onClose = onClose, actions = {
-        IconButton(onClick = { picking = true }) { Icon(Icons.Filled.Add, "Pridať") }
+        IconButton(onClick = { newFolder = true }) { Icon(Icons.Filled.CreateNewFolder, "Nový priečinok") }
+        IconButton(onClick = { picking = true }) { Icon(Icons.Filled.Add, "Pridať aplikácie") }
     }) {
         Text(
-            "Poradie zodpovedá zoznamu obľúbených na ploche. Notifikácie sa zobrazujú pod názvom.",
+            "Poradie zmeníš podržaním a potiahnutím riadku. Tlačidlom priečinka vytvoríš priečinok.",
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.bodySmall,
         )
-        LazyColumn(Modifier.fillMaxSize()) {
-            itemsIndexed(s.favorites, key = { _, k -> k }) { i, k ->
-                val a = apps.firstOrNull { it.key == k }
-                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    if (a != null) AppIconImage(a, 36.dp, s) else Spacer(Modifier.size(36.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Text(a?.let { labelOf(it, s) } ?: k.substringBefore('/'), Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    IconButton(enabled = i > 0, onClick = { Store.editSettings { st -> st.copy(favorites = st.favorites.swap(i, i - 1)) } }) {
-                        Icon(Icons.Filled.KeyboardArrowUp, "Hore")
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState(), enabled = dragKey == null)) {
+            list.forEach { k ->
+                key(k) {
+                    val isDrag = dragKey == k
+                    val folder = if (k.startsWith(FOLDER_PREFIX)) s.favFolders[k] else null
+                    val a = if (folder == null) apps.firstOrNull { it.key == k } else null
+                    val dragMod = Modifier.pointerInput(k) {
+                        detectDragGestures(
+                            onDragStart = { dragKey = k; dragOff = 0f; buzz(haptic, HapticFeedbackType.LongPress) },
+                            onDrag = { c, d -> c.consume(); onDrag(k, d.y) },
+                            onDragEnd = { dragKey = null; dragOff = 0f; commit() },
+                            onDragCancel = { dragKey = null; dragOff = 0f; commit() },
+                        )
                     }
-                    IconButton(enabled = i < s.favorites.size - 1, onClick = { Store.editSettings { st -> st.copy(favorites = st.favorites.swap(i, i + 1)) } }) {
-                        Icon(Icons.Filled.KeyboardArrowDown, "Dole")
-                    }
-                    IconButton(onClick = { Store.editSettings { st -> st.copy(favorites = st.favorites - k) } }) {
-                        Icon(Icons.Filled.Close, "Odobrať")
+                    Row(
+                        Modifier.fillMaxWidth().height(rowDp).zIndex(if (isDrag) 1f else 0f)
+                            .graphicsLayer {
+                                translationY = if (isDrag) dragOff else 0f
+                                if (isDrag) { scaleX = 1.02f; scaleY = 1.02f; shadowElevation = 12f }
+                            }
+                            .background(if (isDrag) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent, RoundedCornerShape(14.dp))
+                            .pointerInput(k) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { dragKey = k; dragOff = 0f; buzz(haptic, HapticFeedbackType.LongPress) },
+                                    onDrag = { c, d -> c.consume(); onDrag(k, d.y) },
+                                    onDragEnd = { dragKey = null; dragOff = 0f; commit() },
+                                    onDragCancel = { dragKey = null; dragOff = 0f; commit() },
+                                )
+                            }
+                            .padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Filled.DragHandle, "Presunúť", Modifier.size(40.dp).then(dragMod).padding(8.dp))
+                        when {
+                            folder != null -> FolderIconOf(folder.apps, 40.dp, s)
+                            a != null -> AppIconImage(a, 40.dp, s)
+                            else -> Spacer(Modifier.size(40.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(folder?.name ?: a?.let { labelOf(it, s) } ?: k.substringBefore('/'), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            if (folder != null) Text("Priečinok · ${folder.apps.size} aplikácií", style = MaterialTheme.typography.bodySmall)
+                        }
+                        if (folder != null) {
+                            IconButton(onClick = { renameFolder = k }) { Icon(Icons.Filled.Edit, "Premenovať") }
+                            IconButton(onClick = { folderApps = k }) { Icon(Icons.Filled.Apps, "Obsah") }
+                        }
+                        IconButton(onClick = {
+                            Store.editSettings { st -> st.copy(favorites = st.favorites - k, favFolders = st.favFolders - k) }
+                        }) { Icon(Icons.Filled.Close, "Odobrať") }
                     }
                 }
             }
         }
     }
+
+    if (newFolder) TextDialog("Nový priečinok", "Priečinok", "", onDismiss = { newFolder = false }) { name ->
+        newFolder = false
+        folderApps = newFavFolder(name.ifEmpty { "Priečinok" })
+    }
+    renameFolder?.let { fid ->
+        TextDialog("Premenovať priečinok", s.favFolders[fid]?.name ?: "", "", onDismiss = { renameFolder = null }) { name ->
+            if (name.isNotEmpty()) editFavFolder(fid) { it.copy(name = name) }
+            renameFolder = null
+        }
+    }
 }
 
-private fun <T> List<T>.swap(a: Int, b: Int): List<T> {
-    if (a !in indices || b !in indices) return this
-    val m = toMutableList()
-    val t = m[a]; m[a] = m[b]; m[b] = t
-    return m
+private fun <T> MutableList<T>.swapAt(a: Int, b: Int) {
+    val t = this[a]; this[a] = this[b]; this[b] = t
 }
 
 // ---------------- dialógy ----------------
@@ -346,11 +495,21 @@ fun SheetHost(ui: LauncherUi, screen: Screen, s: Settings) {
             keys.forEach { ui.addApp(it) }
         }
         Sheet.Settings -> SettingsScreen(ui, screen) { ui.sheet = null }
-        Sheet.Favorites -> FavoritesEditor { ui.sheet = null }
+        Sheet.Favorites -> FavoritesEditor(ui) { ui.sheet = null }
+        is Sheet.FavFolder -> FavFolderSheet(ui, sh.id)
+        is Sheet.FavFolderApps -> AppPicker("Obsah priečinka", s.favFolders[sh.id]?.apps ?: emptyList(), onClose = { ui.sheet = Sheet.FavFolder(sh.id) }) { keys ->
+            editFavFolder(sh.id) { it.copy(apps = keys) }
+            ui.sheet = Sheet.FavFolder(sh.id)
+        }
+        is Sheet.RenameFavFolder -> TextDialog("Premenovať priečinok", s.favFolders[sh.id]?.name ?: "", "",
+            onDismiss = { ui.sheet = Sheet.FavFolder(sh.id) }) { name ->
+            if (name.isNotEmpty()) editFavFolder(sh.id) { it.copy(name = name) }
+            ui.sheet = Sheet.FavFolder(sh.id)
+        }
         is Sheet.Folder -> FolderSheet(ui, screen, sh.id)
         is Sheet.FolderApps -> {
             val item = Store.layout(screen).value.items.find { it.id == sh.id }
-            AppPicker("Obsah priečinka", item?.apps ?: emptyList(), onClose = { ui.sheet = null }) { keys ->
+            AppPicker("Obsah priečinka", item?.apps ?: emptyList(), onClose = { ui.sheet = Sheet.Folder(sh.id) }) { keys ->
                 Store.editLayout(screen) { l -> l.update(sh.id) { it.copy(apps = keys) } }
                 ui.sheet = Sheet.Folder(sh.id)
             }
@@ -365,7 +524,7 @@ fun SheetHost(ui: LauncherUi, screen: Screen, s: Settings) {
         }
         is Sheet.RenameItem -> {
             val item = Store.layout(screen).value.items.find { it.id == sh.id }
-            TextDialog("Názov na ploche", item?.let { itemTitle(it, s) } ?: "", "Prázdne = pôvodný názov",
+            TextDialog(if (item?.type == ItemType.FOLDER) "Názov priečinka" else "Názov na ploche", item?.let { itemTitle(it, s) } ?: "", "Prázdne = pôvodný názov",
                 onDismiss = { ui.sheet = null }) { name ->
                 Store.editLayout(screen) { l -> l.update(sh.id) { it.copy(label = name.ifEmpty { null }) } }
                 ui.sheet = if (item?.type == ItemType.FOLDER && !ui.editMode) Sheet.Folder(sh.id) else null

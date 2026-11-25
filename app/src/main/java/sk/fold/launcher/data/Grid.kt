@@ -103,6 +103,23 @@ data class ScreenLayout(
                 .map { if (it.page > page) it.copy(page = it.page - 1) else it },
         )
 
+    /** Zmena počtu riadkov bez prepočtu pozícií (štvorcové bunky) – čo sa nezmestí, presunie sa. */
+    fun withRows(n: Int): ScreenLayout {
+        if (n == rows || n < 1) return this
+        var out = copy(rows = n, items = emptyList())
+        val leftovers = mutableListOf<HomeItem>()
+        for (item in items.sortedWith(compareBy({ it.page }, { it.y }, { it.x }))) {
+            val h = item.h.coerceAtMost(n)
+            val c = Cell(item.x, item.y.coerceIn(0, n - h), item.w, h)
+            val target = if (out.isFree(item.page, c, null)) c
+            else Grid.findFree(item.w, h, out.cellsOn(item.page), cols, n)
+            if (target != null) out = out.copy(items = out.items + item.at(target))
+            else leftovers += item.copy(h = h)
+        }
+        leftovers.forEach { out = out.place(it, it.page) }
+        return out
+    }
+
     /** Zmena hustoty mriežky – pozície a veľkosti sa prepočítajú pomerne, prekryvy sa vyriešia. */
     fun rescale(newCols: Int, newRows: Int): ScreenLayout {
         if (newCols == cols && newRows == rows) return this
