@@ -301,13 +301,28 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                     SliderRow("Nepriehľadnosť pozadia", s.drawerAlpha, 0.3f..1f, 0, { "${(it * 100).roundToInt()} %" }) { v -> edit { it.copy(drawerAlpha = v) } }
                     ClickRow("Skryté aplikácie", "${s.hidden.size}") { sub = "hidden" }
                     ClickRow("Obľúbené", "${s.favorites.size} položiek – poradie, priečinky") { sub = "fav" }
-                    SliderRow("Veľkosť ikon v obľúbených", s.favIconSize, 36f..80f, 10, { "${it.roundToInt()} dp" }) { v -> edit { it.copy(favIconSize = v.roundToInt().toFloat()) } }
+                    SliderRow("Veľkosť ikon v obľúbených", s.favIconSize, 22f..64f, 20, { "${it.roundToInt()} dp" }) { v -> edit { it.copy(favIconSize = v.roundToInt().toFloat()) } }
                 }
             }
 
             item { SectionTitle("Notifikácie") }
             item {
                 Group {
+                    val conn by Badges.connected.collectAsState()
+                    val counted by Badges.state.collectAsState()
+                    ClickRow(
+                        "Stav odznakov",
+                        when {
+                            !badgesOn -> "Vypnuté – povoľ prístup k notifikáciám (sekcia Povolenia hore)"
+                            !conn -> "Povolené, ale služba nie je pripojená – ťukni pre opätovné pripojenie"
+                            else -> "Funguje · notifikácie z ${counted.size} aplikácií"
+                        },
+                    ) {
+                        if (!badgesOn) openListenerSettings(act) else {
+                            Badges.rebind(act)
+                            act.toast("Pripájam službu odznakov…")
+                        }
+                    }
                     ChoiceRow("Odznaky", BadgeStyle.entries, s.badges, { it.label }) { v -> edit { it.copy(badges = v) } }
                     SwitchRow("Text notifikácie v obľúbených", checked = s.favNotifText) { v -> edit { it.copy(favNotifText = v) } }
                 }

@@ -132,8 +132,18 @@ fun ItemContent(ui: LauncherUi, item: HomeItem, s: Settings, wDp: Dp, hDp: Dp, d
             if (a != null) IconTile(item.label ?: labelOf(a, s), s, wDp, hDp, notifs[a.pkg]?.count ?: 0) { sz -> AppIconImage(a, sz, s) }
             else IconTile("?", s, wDp, hDp, 0) { sz -> Box(Modifier.size(sz).clip(CircleShape).background(Color.White.copy(alpha = 0.25f))) }
         }
-        ItemType.SHORTCUT -> IconTile(item.label ?: "", s, wDp, hDp, 0) { sz -> ShortcutIconImage(item, sz, s) }
-        ItemType.FOLDER -> IconTile(item.label ?: "Priečinok", s, wDp, hDp, 0) { sz -> FolderIcon(item, sz, s) }
+        ItemType.SHORTCUT -> {
+            val notifs by Badges.state.collectAsState()
+            IconTile(item.label ?: "", s, wDp, hDp, item.pkg?.let { notifs[it]?.count } ?: 0) { sz -> ShortcutIconImage(item, sz, s) }
+        }
+        ItemType.FOLDER -> {
+            val apps by Apps.list.collectAsState()
+            val notifs by Badges.state.collectAsState()
+            val count = remember(apps, notifs, item.apps) {
+                item.apps.sumOf { k -> apps.firstOrNull { it.key == k }?.let { notifs[it.pkg]?.count } ?: 0 }
+            }
+            IconTile(item.label ?: "Priečinok", s, wDp, hDp, count) { sz -> FolderIcon(item, sz, s) }
+        }
         ItemType.WIDGET -> WidgetBox(ui, item, wDp, hDp, drag)
         ItemType.CLOCK -> ClockView(s, wDp, hDp)
         ItemType.FAVORITES -> FavoritesView(ui, s, hDp)
@@ -293,9 +303,10 @@ private fun FavoritesView(ui: LauncherUi, s: Settings, hDp: Dp) {
         return
     }
     val iconSize = s.favIconSize.dp
-    val rowH = iconSize + 18.dp
-    val titleSize = (s.favIconSize * 0.38f).coerceIn(15f, 26f).sp
-    val subSize = (s.favIconSize * 0.24f).coerceIn(11f, 16f).sp
+    // Rozmery ako v Niagare: ikona ~28 dp, riadok ~44 dp, názov ~20 sp.
+    val rowH = iconSize + 16.dp
+    val titleSize = (s.favIconSize * 0.7f).coerceIn(15f, 26f).sp
+    val subSize = (s.favIconSize * 0.42f).coerceIn(11f, 15f).sp
     val needScroll = rowH * entries.size > hDp
     Column(
         Modifier.fillMaxSize().then(if (needScroll) Modifier.verticalScroll(rememberScrollState()) else Modifier),
@@ -306,16 +317,16 @@ private fun FavoritesView(ui: LauncherUi, s: Settings, hDp: Dp) {
             val count = if (a != null) notifs[a.pkg]?.count ?: 0
             else folder?.apps?.sumOf { key -> apps.firstOrNull { it.key == key }?.let { notifs[it.pkg]?.count } ?: 0 } ?: 0
             Row(
-                Modifier.fillMaxWidth().height(rowH).clip(RoundedCornerShape(16.dp))
+                Modifier.fillMaxWidth().height(rowH).clip(RoundedCornerShape(12.dp))
                     .clickable { if (a != null) Apps.launch(ui.activity, a) else ui.sheet = Sheet.FavFolder(k) }
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box {
                     if (a != null) AppIconImage(a, iconSize, s) else FolderIconOf(folder?.apps ?: emptyList(), iconSize, s)
                     BadgeMark(count, s, Modifier.align(Alignment.TopEnd))
                 }
-                Spacer(Modifier.width(16.dp))
+                Spacer(Modifier.width(20.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
                         if (a != null) labelOf(a, s) else folder?.name ?: "", style = labelStyle(s, titleSize),

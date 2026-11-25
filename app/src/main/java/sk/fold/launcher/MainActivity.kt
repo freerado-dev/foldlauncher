@@ -60,6 +60,7 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         super.onCreate(savedInstanceState)
+        sk.fold.launcher.data.Badges.rebind(this)
         setContent {
             val settings by Store.settings.collectAsState()
             val state = remember { LauncherUi(this) }
@@ -86,6 +87,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         ui?.let { it.resumeTick++ }
+        sk.fold.launcher.data.Badges.rebind(this)
     }
 
     fun toast(t: String) = Toast.makeText(this, t, Toast.LENGTH_SHORT).show()

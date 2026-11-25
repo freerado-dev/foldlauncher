@@ -84,6 +84,7 @@ import androidx.compose.ui.zIndex
 import sk.fold.launcher.data.Apps
 import sk.fold.launcher.data.Cell
 import sk.fold.launcher.data.GestureAction
+import sk.fold.launcher.data.Grid
 import sk.fold.launcher.data.PageEffect
 import sk.fold.launcher.data.HomeItem
 import sk.fold.launcher.data.ItemType
@@ -308,7 +309,7 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
                 )
             } else {
                 val ghost: Pair<Cell, Boolean>? = when {
-                    dragged != null -> targetOf(dragged).let { t -> t to layout.isFree(page, t, dragged.id) }
+                    dragged != null -> targetOf(dragged) to true
                     resize != null && ui.selectedId != null -> resize!! to layout.isFree(page, resize!!, ui.selectedId)
                     else -> null
                 }
@@ -320,6 +321,19 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
                             .clip(RoundedCornerShape(14.dp))
                             .background((if (ok) Color.White else Color(0xFFFF453A)).copy(alpha = 0.22f))
                             .border(1.5.dp, (if (ok) Color.White else Color(0xFFFF453A)).copy(alpha = 0.8f), RoundedCornerShape(14.dp))
+                    )
+                }
+            }
+
+            // Prvky, ktoré sa po pustení odsunú, jemne zvýrazníme.
+            if (dragged != null && folderTarget == null) {
+                val t = targetOf(dragged)
+                items.filter { it.id != dragged.id && Grid.overlaps(it.cell, t) }.forEach { b ->
+                    Box(
+                        Modifier.offset { IntOffset((b.x * cw).roundToInt(), (b.y * ch).roundToInt()) }
+                            .size(with(density) { (b.w * cw).toDp() }, with(density) { (b.h * ch).toDp() })
+                            .padding(3.dp)
+                            .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.9f), RoundedCornerShape(14.dp))
                     )
                 }
             }
@@ -349,8 +363,11 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
                                         ui.dropIntoFolder(it2, ft)
                                     } else {
                                         val t = targetOf(it2)
-                                        if (cur.isFree(page, t, it2.id)) Store.editLayout(screen) { l -> l.update(it2.id) { x -> x.at(t) } }
-                                        else buzz(haptic, HapticFeedbackType.LongPress)
+                                        if (t != it2.cell) {
+                                            // Obsadené miesto → prekážajúce prvky sa automaticky presunú (výmena miest).
+                                            if (!cur.isFree(page, t, it2.id)) buzz(haptic, HapticFeedbackType.TextHandleMove)
+                                            Store.editLayout(screen) { l -> l.moveWithSwap(it2.id, t) ?: l }
+                                        }
                                     }
                                 }
                             }

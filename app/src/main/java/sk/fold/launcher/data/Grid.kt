@@ -93,6 +93,47 @@ data class ScreenLayout(
         return base.update(id) { it.at(c, page) }
     }
 
+    /**
+     * Presun na obsadené miesto: prekážajúce prvky sa presunú na uvoľnené miesto ťahaného prvku
+     * (ak sa tam zmestia), inak na najbližšie voľné miesto na stránke, prípadne na inú stránku.
+     */
+    fun moveWithSwap(id: Long, target: Cell): ScreenLayout? {
+        val item = items.find { it.id == id } ?: return null
+        if (!Grid.inside(target, cols, rows)) return null
+        val page = item.page
+        val blockers = items.filter { it.page == page && it.id != id && Grid.overlaps(it.cell, target) }
+        if (blockers.isEmpty()) return update(id) { it.at(target) }
+        val dx = item.x - target.x
+        val dy = item.y - target.y
+        var out = copy(items = items.filter { it.id != id && it !in blockers } + item.at(target))
+        // 1) posun o rovnaký vektor – prvky si vymenia miesto
+        val shifted = blockers.map { it.at(Cell(it.x + dx, it.y + dy, it.w, it.h)) }
+        val fits = shifted.all { s ->
+            Grid.isFree(s.cell, out.cellsOn(page) + shifted.filter { it.id != s.id && it.id < s.id }.map { it.cell }, cols, rows)
+        } && shifted.indices.all { i -> shifted.indices.none { j -> j != i && Grid.overlaps(shifted[i].cell, shifted[j].cell) } }
+        if (fits) return out.copy(items = out.items + shifted)
+        // 2) každý prekážajúci prvok na najbližšie voľné miesto k pôvodnej pozícii ťahaného prvku
+        val leftovers = mutableListOf<HomeItem>()
+        for (b in blockers.sortedByDescending { it.w * it.h }) {
+            val free = nearestFree(b.w, b.h, item.x, item.y, out.cellsOn(page))
+            if (free != null) out = out.copy(items = out.items + b.at(free)) else leftovers += b
+        }
+        leftovers.forEach { out = out.place(it, page) }
+        return out
+    }
+
+    private fun nearestFree(w: Int, h: Int, nearX: Int, nearY: Int, others: List<Cell>): Cell? {
+        var best: Cell? = null
+        var bestD = Int.MAX_VALUE
+        for (y in 0..rows - h) for (x in 0..cols - w) {
+            val c = Cell(x, y, w, h)
+            if (!Grid.isFree(c, others, cols, rows)) continue
+            val d = (x - nearX) * (x - nearX) + (y - nearY) * (y - nearY)
+            if (d < bestD) { bestD = d; best = c }
+        }
+        return best
+    }
+
     fun addPage() = copy(pages = pages + 1)
 
     fun removePage(page: Int): ScreenLayout =

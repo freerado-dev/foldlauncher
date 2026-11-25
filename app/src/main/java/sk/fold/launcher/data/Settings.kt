@@ -85,5 +85,5 @@ data class Settings(
     val showRecent: Boolean = true,
     val showWork: Boolean = true,
     val favFolders: Map<String, FavFolder> = emptyMap(),
-    val favIconSize: Float = 52f,
+    val favIconSize: Float = 28f,
 )
