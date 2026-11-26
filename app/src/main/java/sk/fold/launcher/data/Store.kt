@@ -301,6 +301,10 @@ object Store {
         put("floatCoverX", s.floatCoverX.toDouble()); put("floatCoverY", s.floatCoverY.toDouble())
         put("floatInnerX", s.floatInnerX.toDouble()); put("floatInnerY", s.floatInnerY.toDouble())
         put("floatAllPages", s.floatAllPages); put("floatCoverPage", s.floatCoverPage); put("floatInnerPage", s.floatInnerPage)
+        put("floatRing", s.floatRing); put("floatRingSize", s.floatRingSize.toDouble())
+        put("floatRingCoverX", s.floatRingCoverX.toDouble()); put("floatRingCoverY", s.floatRingCoverY.toDouble())
+        put("floatRingInnerX", s.floatRingInnerX.toDouble()); put("floatRingInnerY", s.floatRingInnerY.toDouble())
+        put("floatRingAllPages", s.floatRingAllPages); put("floatRingCoverPage", s.floatRingCoverPage); put("floatRingInnerPage", s.floatRingInnerPage)
         put("favFolders", JSONObject().apply {
             s.favFolders.forEach { (k, f) -> put(k, JSONObject().put("name", f.name).put("apps", JSONArray(f.apps))) }
         })
@@ -374,6 +378,12 @@ object Store {
             floatInnerX = f("floatInnerX", d.floatInnerX), floatInnerY = f("floatInnerY", d.floatInnerY),
             floatAllPages = o.optBoolean("floatAllPages", d.floatAllPages),
             floatCoverPage = o.optInt("floatCoverPage", 0), floatInnerPage = o.optInt("floatInnerPage", 0),
+            floatRing = o.optBoolean("floatRing", d.floatRing),
+            floatRingSize = f("floatRingSize", d.floatRingSize),
+            floatRingCoverX = f("floatRingCoverX", d.floatRingCoverX), floatRingCoverY = f("floatRingCoverY", d.floatRingCoverY),
+            floatRingInnerX = f("floatRingInnerX", d.floatRingInnerX), floatRingInnerY = f("floatRingInnerY", d.floatRingInnerY),
+            floatRingAllPages = o.optBoolean("floatRingAllPages", d.floatRingAllPages),
+            floatRingCoverPage = o.optInt("floatRingCoverPage", 0), floatRingInnerPage = o.optInt("floatRingInnerPage", 0),
             favFolders = o.optJSONObject("favFolders")?.let { ff ->
                 ff.keys().asSequence().mapNotNull { k ->
                     val fo = ff.optJSONObject(k) ?: return@mapNotNull null

@@ -17,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -42,36 +43,58 @@ object Holo {
 
 val Settings.holo: Boolean get() = launcherTheme == LauncherTheme.HOLO
 
-/** Sklenený HUD panel s tyrkysovým okrajom a rohovými značkami (len v téme Hologram). */
-fun Modifier.holoPanel(s: Settings, pad: Dp = 8.dp, radius: Dp = 14.dp): Modifier {
+/**
+ * Sklo: matná výplň, šikmý odlesk svetla prechádzajúci cez sklo a žiarenie po hranách,
+ * ktoré slabne smerom dovnútra. Odlesk a hrany sa kreslia NAD obsah, takže svetlo ide „cez sklo“.
+ */
+fun Modifier.glass(s: Settings, radius: Dp = 18.dp, fill: Boolean = true): Modifier {
     if (!s.holo) return this
     val shape = RoundedCornerShape(radius)
-    return this
-        .clip(shape)
-        .background(Brush.verticalGradient(listOf(Color(0x5518355C), Color(0x330A1A30))))
-        .border(1.dp, Brush.linearGradient(listOf(Holo.Cyan.copy(alpha = 0.85f), Holo.Cyan.copy(alpha = 0.12f), Holo.Cyan.copy(alpha = 0.6f))), shape)
-        .drawWithContent {
-            drawContent()
-            // HUD rohy
-            val l = 12.dp.toPx()
-            val w = 2.dp.toPx()
-            val c = Holo.Cyan
-            val i = 3.dp.toPx()
-            drawLine(c, Offset(i, i), Offset(i + l, i), w); drawLine(c, Offset(i, i), Offset(i, i + l), w)
-            drawLine(c, Offset(size.width - i, i), Offset(size.width - i - l, i), w); drawLine(c, Offset(size.width - i, i), Offset(size.width - i, i + l), w)
-            drawLine(c, Offset(i, size.height - i), Offset(i + l, size.height - i), w); drawLine(c, Offset(i, size.height - i), Offset(i, size.height - i - l), w)
-            drawLine(c, Offset(size.width - i, size.height - i), Offset(size.width - i - l, size.height - i), w)
-            drawLine(c, Offset(size.width - i, size.height - i), Offset(size.width - i, size.height - i - l), w)
+    return this.clip(shape).drawWithContent {
+        val w = size.width
+        val h = size.height
+        val r = radius.toPx()
+        if (fill) drawRect(Brush.verticalGradient(listOf(Color(0x5A1A3C64), Color(0x300A1A30), Color(0x40102A48))))
+        drawContent()
+        // svetlo prechádzajúce cez sklo – šikmý gradient od ľavého horného rohu až k hranám
+        drawRect(
+            Brush.linearGradient(
+                0f to Color.White.copy(alpha = 0.22f),
+                0.28f to Color.White.copy(alpha = 0.06f),
+                0.5f to Color.Transparent,
+                0.82f to Holo.Cyan.copy(alpha = 0.05f),
+                1f to Holo.Cyan.copy(alpha = 0.16f),
+                start = Offset.Zero, end = Offset(w, h),
+            )
+        )
+        // žiarenie po hranách – niekoľko vrstiev, slabnú smerom dovnútra
+        val edge = Brush.linearGradient(
+            listOf(Color.White.copy(alpha = 0.9f), Holo.Cyan.copy(alpha = 0.35f), Holo.Cyan.copy(alpha = 0.15f), Color.White.copy(alpha = 0.5f)),
+            start = Offset.Zero, end = Offset(w, h),
+        )
+        val stroke = 1.2.dp.toPx()
+        for (i in 0 until 5) {
+            val inset = i * 1.6.dp.toPx() + stroke / 2
+            drawRoundRect(
+                edge, topLeft = Offset(inset, inset), size = Size(w - inset * 2, h - inset * 2),
+                cornerRadius = CornerRadius((r - inset).coerceAtLeast(0f)), alpha = 0.9f / (1 + i * 1.6f),
+                style = Stroke(if (i == 0) stroke else stroke * 1.6f),
+            )
         }
-        .padding(pad)
+        // lesklá horná hrana
+        drawLine(
+            Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.85f), Color.Transparent), startX = r, endX = w - r),
+            Offset(r, stroke), Offset(w - r, stroke), stroke,
+        )
+    }
 }
 
-/** Tenký tyrkysový rámik okolo widgetov v téme Hologram. */
-fun Modifier.holoFrame(s: Settings, radius: Dp = 18.dp): Modifier {
-    if (!s.holo) return this
-    val shape = RoundedCornerShape(radius)
-    return this.clip(shape).border(1.dp, Holo.Cyan.copy(alpha = 0.55f), shape)
-}
+/** Panel na skle s vnútorným odsadením (hodiny, obľúbené…). */
+fun Modifier.holoPanel(s: Settings, pad: Dp = 8.dp, radius: Dp = 16.dp): Modifier =
+    if (!s.holo) this else this.glass(s, radius, fill = true).padding(pad)
+
+/** Widget „na skle“ – bez výplne (widget má vlastné pozadie), so svetlom a hranami cez obsah. */
+fun Modifier.holoFrame(s: Settings, radius: Dp = 18.dp): Modifier = glass(s, radius, fill = false)
 
 /** Pôvodný animovaný holografický kruh – otáčajúce sa segmenty, stupnica a žiariace jadro. */
 @Composable

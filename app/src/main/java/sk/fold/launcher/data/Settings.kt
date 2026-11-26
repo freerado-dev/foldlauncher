@@ -123,4 +123,11 @@ data class Settings(
     /** false = len na jednej stránke plochy (floatCoverPage / floatInnerPage). */
     val floatAllPages: Boolean = false,
     val floatCoverPage: Int = 0, val floatInnerPage: Int = 0,
+    /** Plávajúci Holo kruh mimo mriežky. */
+    val floatRing: Boolean = false,
+    val floatRingSize: Float = 160f,
+    val floatRingCoverX: Float = 0.5f, val floatRingCoverY: Float = 0.35f,
+    val floatRingInnerX: Float = 0.5f, val floatRingInnerY: Float = 0.35f,
+    val floatRingAllPages: Boolean = false,
+    val floatRingCoverPage: Int = 0, val floatRingInnerPage: Int = 0,
 )

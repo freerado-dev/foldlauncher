@@ -89,6 +89,10 @@ fun ItemMenu(ui: LauncherUi, item: HomeItem, dismiss: () -> Unit) {
         ItemType.FOLDER -> MenuRow("Upraviť obsah", Icons.Filled.Apps) { dismiss(); ui.sheet = Sheet.FolderApps(item.id) }
         ItemType.FAVORITES -> MenuRow("Upraviť obľúbené", Icons.Filled.Star) { dismiss(); ui.sheet = Sheet.Favorites }
         ItemType.CLOCK -> MenuRow("Nastavenia hodín a počasia", Icons.Filled.Schedule) { dismiss(); ui.sheet = Sheet.ClockSettings }
+        ItemType.HOLO_RING -> MenuRow("Voľne umiestniť (mimo mriežky)", Icons.Filled.OpenWith) {
+            dismiss(); ui.remove(item); ui.enableFloatingRing()
+            ui.activity.toast("Holo kruh môžeš podržať a presunúť kamkoľvek")
+        }
         ItemType.ASSISTANT -> {
             MenuRow("Vybrať asistenta", Icons.Filled.Mic) { dismiss(); ui.sheet = Sheet.AssistantSettings }
             val hidden = item.label == ""

@@ -204,7 +204,7 @@ fun AppDrawer(ui: LauncherUi, s: Settings) {
         )
     }
 
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface.copy(alpha = s.drawerAlpha)) {
+    Surface(Modifier.fillMaxSize().glass(s, 0.dp, fill = false), color = MaterialTheme.colorScheme.surface.copy(alpha = s.drawerAlpha)) {
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
             Box(Modifier.fillMaxWidth().then(headerDrag).padding(top = 8.dp, bottom = 2.dp), contentAlignment = Alignment.Center) {
                 Box(Modifier.width(40.dp).height(4.dp).clip(CircleShape).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)))

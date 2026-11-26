@@ -263,6 +263,13 @@ class LauncherUi(val activity: MainActivity) {
         }
     }
 
+    fun enableFloatingRing() {
+        Store.editSettings {
+            if (screen.isCover) it.copy(floatRing = true, floatRingCoverPage = page)
+            else it.copy(floatRing = true, floatRingInnerPage = page)
+        }
+    }
+
     fun remove(item: HomeItem) {
         if (item.type == ItemType.WIDGET) Widgets.release(item.widgetId, item.id)
         Store.editLayout(screen) { it.remove(item.id) }

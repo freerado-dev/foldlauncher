@@ -164,6 +164,7 @@ fun WidgetPicker(ui: LauncherUi, screen: Screen, feed: Boolean = false) {
                     item { ElementCard("Priečinok", "Skupina aplikácií", Icons.Filled.Folder) { ui.addElement(ItemType.FOLDER) } }
                     item { ElementCard("Hlasový asistent", "Gemini, Google, Bixby…", Icons.Filled.Mic) { ui.sheet = null; ui.addElement(ItemType.ASSISTANT) } }
                     item { ElementCard("Holo kruh", "Animovaný prvok, ťuknutím asistent", Icons.Filled.Mic) { ui.sheet = null; ui.addElement(ItemType.HOLO_RING) } }
+                    item { ElementCard("Plávajúci Holo kruh", "Kamkoľvek, mimo mriežky", Icons.Filled.Mic) { ui.sheet = null; ui.enableFloatingRing() } }
                     item { ElementCard("Plávajúci asistent", "Kamkoľvek, nad všetkým", Icons.Filled.Mic) { ui.sheet = null; ui.enableFloatingAssistant() } }
                 }
             }
@@ -320,8 +321,7 @@ private fun PopupSurface(content: @Composable () -> Unit) {
     val s by Store.settings.collectAsState()
     Surface(
         shape = RoundedCornerShape(28.dp), color = popupBg(), contentColor = popupText(),
-        border = if (s.holo) androidx.compose.foundation.BorderStroke(1.dp, Holo.Cyan.copy(alpha = 0.7f)) else null,
-    ) { content() }
+    ) { Box(Modifier.glass(s, 28.dp, fill = false)) { content() } }
 }
 
 /** Priečinok ako okno alebo ako panel zdola (podľa nastavenia). */
@@ -337,7 +337,7 @@ private fun FolderContainer(ui: LauncherUi, content: @Composable () -> Unit) {
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = popupBg(),
             contentColor = popupText(),
-        ) { Box(Modifier.fillMaxWidth().height(h)) { content() } }
+        ) { Box(Modifier.fillMaxWidth().height(h).glass(s, 28.dp, fill = false)) { content() } }
     } else {
         Dialog(onDismissRequest = { ui.sheet = null }) { PopupSurface { content() } }
     }
@@ -520,12 +520,13 @@ fun AgendaSheet(ui: LauncherUi) {
     val dayFmt = remember { java.time.format.DateTimeFormatter.ofPattern("EEE d. M.", java.util.Locale.getDefault()) }
     val timeFmt = remember { java.text.SimpleDateFormat("H:mm", java.util.Locale.getDefault()) }
     val accent = Color(0xFFB4B8FF)
+    val st by Store.settings.collectAsState()
     ModalBottomSheet(
         onDismissRequest = { ui.sheet = null },
         sheetState = rememberModalBottomSheetState(),
         containerColor = popupBg(),
         contentColor = popupText(),
-    ) {
+    ) { Column(Modifier.glass(st, 28.dp, fill = false)) {
         Text("Váš program", fontSize = 22.sp, modifier = Modifier.padding(start = 24.dp, bottom = 8.dp))
         val list = events
         if (list == null) {
@@ -581,7 +582,7 @@ fun AgendaSheet(ui: LauncherUi) {
                 }
             }
         }
-    }
+    } }
 }
 
 @Composable

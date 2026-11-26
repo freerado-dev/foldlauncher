@@ -214,6 +214,18 @@ fun HomeScreen(ui: LauncherUi, screen: Screen, layout: ScreenLayout, s: Settings
                 FloatingAssistant(ui, screen, s, w, hArea)
             }
         }
+        if (s.floatRing) {
+            val fp = (if (screen.isCover) s.floatRingCoverPage else s.floatRingInnerPage).coerceIn(0, layout.pages - 1)
+            val w = constraints.maxWidth.toFloat()
+            val hArea = constraints.maxHeight.toFloat()
+            // Len na jednej stránke: tlačidlo sa posúva spolu so stránkou pri listovaní.
+            Box(Modifier.fillMaxSize().graphicsLayer {
+                if (!s.floatRingAllPages) translationX = (fp + off - pager.currentPage - pager.currentPageOffsetFraction) * w
+                else if (off > 0) alpha = (pager.currentPage + pager.currentPageOffsetFraction).coerceIn(0f, 1f)
+            }) {
+                FloatingRing(ui, screen, s, w, hArea)
+            }
+        }
         if (layout.pages + off > 1 && s.showPageDots) Box(Modifier.align(Alignment.BottomCenter)) { PageDots(layout.pages + off, pager.currentPage) }
         if (ui.editMode) {
             Box(Modifier.align(Alignment.TopCenter)) { SelectionBar(ui, screen, layout, s) }
@@ -289,6 +301,77 @@ private fun FloatingAssistant(ui: LauncherUi, screen: Screen, s: Settings, areaW
                 ui.addElement(ItemType.ASSISTANT)
             }
             HomeMenuItem("Odstrániť z plochy", Icons.Filled.Delete) { menu = false; Store.editSettings { it.copy(floatAssist = false) } }
+        }
+    }
+}
+
+/** Plávajúci Holo kruh – kdekoľvek mimo mriežky. */
+@Composable
+private fun FloatingRing(ui: LauncherUi, screen: Screen, s: Settings, areaW: Float, areaH: Float) {
+    val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
+    val sizePx = with(density) { s.floatRingSize.dp.toPx() }
+    val fx = if (screen.isCover) s.floatRingCoverX else s.floatRingInnerX
+    val fy = if (screen.isCover) s.floatRingCoverY else s.floatRingInnerY
+    var drag by remember { mutableStateOf(Offset.Zero) }
+    var dragging by remember { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
+    val baseX = fx * (areaW - sizePx)
+    val baseY = fy * (areaH - sizePx)
+    val curX by rememberUpdatedState(baseX)
+    val curY by rememberUpdatedState(baseY)
+    val editing by rememberUpdatedState(ui.editMode)
+    Box(
+        Modifier
+            .offset {
+                IntOffset(
+                    (baseX + drag.x).coerceIn(0f, areaW - sizePx).roundToInt(),
+                    (baseY + drag.y).coerceIn(0f, areaH - sizePx).roundToInt(),
+                )
+            }
+            .size(s.floatRingSize.dp)
+            .zIndex(10f)
+            .graphicsLayer { if (dragging) { scaleX = 1.12f; scaleY = 1.12f } }
+            .pointerInput(screen, areaW, areaH, sizePx) {
+                itemGestures(
+                    editing = { editing },
+                    isWidget = { false },
+                    onSelect = {},
+                    onTap = { ui.openAssistant() },
+                    onLongPress = { buzz(haptic, HapticFeedbackType.LongPress); menu = true },
+                    onDragStart = { menu = false; dragging = true; drag = Offset.Zero },
+                    onDrag = { d -> drag += d },
+                    onDragEnd = {
+                        val nx = ((curX + drag.x).coerceIn(0f, areaW - sizePx) / (areaW - sizePx).coerceAtLeast(1f)).coerceIn(0f, 1f)
+                        val ny = ((curY + drag.y).coerceIn(0f, areaH - sizePx) / (areaH - sizePx).coerceAtLeast(1f)).coerceIn(0f, 1f)
+                        Store.editSettings {
+                            if (screen.isCover) it.copy(floatRingCoverX = nx, floatRingCoverY = ny)
+                            else it.copy(floatRingInnerX = nx, floatRingInnerY = ny)
+                        }
+                        drag = Offset.Zero; dragging = false
+                    },
+                )
+            },
+    ) {
+        HoloRing(Modifier.fillMaxSize())
+        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            HomeMenuItem("Vybrať asistenta", Icons.Filled.Mic) { menu = false; ui.sheet = Sheet.AssistantSettings }
+            HomeMenuItem(if (s.floatRingAllPages) "Len na tejto stránke" else "Na všetkých stránkach", Icons.Filled.Widgets) {
+                menu = false
+                Store.editSettings {
+                    val p = ui.page
+                    val n = it.copy(floatRingAllPages = !it.floatRingAllPages)
+                    if (screen.isCover) n.copy(floatRingCoverPage = p) else n.copy(floatRingInnerPage = p)
+                }
+            }
+            HomeMenuItem("Väčšie", Icons.Filled.Add) { Store.editSettings { it.copy(floatRingSize = (it.floatRingSize + 24f).coerceAtMost(420f)) } }
+            HomeMenuItem("Menšie", Icons.Filled.Remove) { Store.editSettings { it.copy(floatRingSize = (it.floatRingSize - 24f).coerceAtLeast(64f)) } }
+            HomeMenuItem("Vrátiť do mriežky", Icons.Filled.Apps) {
+                menu = false
+                Store.editSettings { it.copy(floatRing = false) }
+                ui.addElement(ItemType.HOLO_RING)
+            }
+            HomeMenuItem("Odstrániť z plochy", Icons.Filled.Delete) { menu = false; Store.editSettings { it.copy(floatRing = false) } }
         }
     }
 }

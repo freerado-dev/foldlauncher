@@ -211,12 +211,7 @@ private fun IconTile(label: String, s: Settings, wDp: Dp, hDp: Dp, badge: Int, n
         Box(contentAlignment = Alignment.Center) {
             if (s.holo) {
                 // sklenená dlaždica s tyrkysovým okrajom
-                Box(
-                    Modifier.size(iconSize).clip(RoundedCornerShape(iconSize * 0.26f))
-                        .background(Brush.verticalGradient(listOf(Color(0x6618385E), Color(0x440A1A30))))
-                        .border(1.dp, Holo.Cyan.copy(alpha = 0.7f), RoundedCornerShape(iconSize * 0.26f)),
-                    contentAlignment = Alignment.Center,
-                ) { icon(iconSize * 0.74f) }
+                Box(Modifier.size(iconSize).glass(s, iconSize * 0.26f), contentAlignment = Alignment.Center) { icon(iconSize * 0.74f) }
             } else icon(iconSize)
             BadgeMark(badge, s, Modifier.align(Alignment.Center))
         }
