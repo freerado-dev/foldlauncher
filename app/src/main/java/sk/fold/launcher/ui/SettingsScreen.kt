@@ -554,7 +554,7 @@ private fun WallpaperSettings(s: Settings) {
             )
         }
     }
-    ClickRow("Nastaviť ako tapetu", "Otvorí náhľad – potom zvoľ plochu, zamknutú obrazovku alebo obe") {
+    ClickRow("Nastaviť ako tapetu", "Na Folde nastav zvlášť zložený aj rozložený – vnútorný displej má vlastnú tapetu") {
         val cn = android.content.ComponentName(ctx, sk.fold.launcher.wall.HoloWallpaper::class.java)
         val ok = runCatching {
             ctx.startActivity(android.content.Intent(android.app.WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER)
@@ -606,7 +606,7 @@ private fun BeamSettings(ui: LauncherUi, s: Settings) {
     SliderRow("Pauza medzi lúčmi", s.beamInterval, 0f..10f, 9, { "${it.roundToInt()} s" }) { v -> edit { it.copy(beamInterval = v.roundToInt().toFloat()) } }
     SliderRow("Doladenie polohy v drážke", s.beamShift, -0.5f..0.5f, 0, { "%+.2f".format(it) }) { v -> edit { it.copy(beamShift = v) } }
     ChoiceRow("Smer drážok", listOf(1, -1), s.beamDir, { if (it > 0) "/  zľava hore" else "\\  zľava dole" }) { v -> edit { it.copy(beamDir = v) } }
-    ClickRow("Nastaviť ako tapetu", "Lúče cez tvoj obrázok – plocha, zamknutá obrazovka alebo obe") {
+    ClickRow("Nastaviť ako tapetu", "Na Folde nastav zvlášť zložený aj rozložený – vnútorný displej má vlastnú tapetu") {
         val cn = android.content.ComponentName(ctx, sk.fold.launcher.wall.BeamWallpaper::class.java)
         val ok = runCatching {
             ctx.startActivity(android.content.Intent(android.app.WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER)

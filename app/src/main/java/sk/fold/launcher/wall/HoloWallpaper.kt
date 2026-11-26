@@ -47,6 +47,16 @@ class HoloWallpaper : WallpaperService() {
         override fun onSurfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
             w = width; h = height
             draw()
+            // po rozložení / zmene displeja sa animácia spustí aj vtedy, keď nepríde zmena viditeľnosti
+            if (isVisible) { visible = true; handler.removeCallbacks(frame); handler.post(frame) }
+        }
+
+        override fun onSurfaceRedrawNeeded(holder: SurfaceHolder) = draw()
+
+        override fun onCreate(surfaceHolder: SurfaceHolder) {
+            super.onCreate(surfaceHolder)
+            // Fold: každý displej má vlastnú inštanciu tapety
+            setOffsetNotificationsEnabled(false)
         }
 
         override fun onSurfaceDestroyed(holder: SurfaceHolder) {
