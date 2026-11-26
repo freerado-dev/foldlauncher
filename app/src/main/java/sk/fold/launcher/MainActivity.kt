@@ -58,6 +58,12 @@ class MainActivity : ComponentActivity() {
         ui?.let { it.resumeTick++ }
     }
 
+    private val calendarLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        ui?.let { it.resumeTick++ }
+    }
+
+    fun requestCalendar() = calendarLauncher.launch(android.Manifest.permission.READ_CALENDAR)
+
     fun requestLocation() = locationLauncher.launch(android.Manifest.permission.ACCESS_COARSE_LOCATION)
 
     private val roleLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {

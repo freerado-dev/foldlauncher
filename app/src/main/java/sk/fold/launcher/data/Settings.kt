@@ -97,6 +97,7 @@ data class Settings(
     /** Aplikácia po ťuknutí na počasie ("" = predpoveď na webe). */
     val weatherApp: String = "",
     val showWeather: Boolean = true,
+    val showEvents: Boolean = true,
     /** Mesto pre počasie ("" = poloha telefónu). */
     val weatherCity: String = "",
     val weatherF: Boolean = false,

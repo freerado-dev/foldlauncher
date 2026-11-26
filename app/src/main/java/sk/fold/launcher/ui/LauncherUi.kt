@@ -35,6 +35,7 @@ sealed interface Sheet {
     data object RemovePage : Sheet
     data object ClockSettings : Sheet
     data object AssistantSettings : Sheet
+    data object Agenda : Sheet
     data class FavFolder(val id: String) : Sheet
     data class FavFolderApps(val id: String) : Sheet
     data class RenameFavFolder(val id: String) : Sheet

@@ -47,6 +47,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -80,7 +81,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import sk.fold.launcher.data.AppInfo
+import sk.fold.launcher.data.Agenda
 import sk.fold.launcher.data.Apps
+import sk.fold.launcher.data.CalEvent
 import sk.fold.launcher.data.BadgeStyle
 import sk.fold.launcher.data.Badges
 import sk.fold.launcher.data.ClockStyle
@@ -335,6 +338,35 @@ private fun WeatherChip(ui: LauncherUi, s: Settings, textSize: TextUnit, iconSiz
     }
 }
 
+/** Najbližšia udalosť z kalendára pod dátumom – ťuknutím sa otvorí „Váš program“. */
+@Composable
+private fun EventLine(ui: LauncherUi, s: Settings, textSize: TextUnit, refreshKey: Long) {
+    if (!s.showEvents) return
+    val ctx = LocalContext.current
+    val tick = ui.resumeTick
+    val perm = remember(tick) { Agenda.hasPermission(ctx) }
+    var next by remember { mutableStateOf<CalEvent?>(null) }
+    LaunchedEffect(perm, tick, refreshKey) {
+        next = if (perm) withContext(Dispatchers.IO) { Agenda.load(ctx, 120).firstOrNull() } else null
+    }
+    val ff = LocalFont.current
+    if (!perm) {
+        Text(
+            "Ťukni pre zobrazenie udalostí z kalendára", style = labelStyle(s, textSize, Color.White.copy(alpha = 0.7f)),
+            fontFamily = ff, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { ui.activity.requestCalendar() },
+        )
+        return
+    }
+    val e = next ?: return
+    val rel = Agenda.relative(e.day)
+    val time = if (!e.allDay && rel == "dnes") " · " + SimpleDateFormat("H:mm", Locale.getDefault()).format(Date(e.begin)) else ""
+    Text(
+        "${e.title} · $rel$time", style = labelStyle(s, textSize), fontFamily = ff, maxLines = 1, overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { ui.sheet = Sheet.Agenda },
+    )
+}
+
 @Composable
 private fun ClockView(ui: LauncherUi, s: Settings, wDp: Dp, hDp: Dp) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -348,14 +380,16 @@ private fun ClockView(ui: LauncherUi, s: Settings, wDp: Dp, hDp: Dp) {
     val ff = LocalFont.current
     val time = remember(now, s.clock24) { SimpleDateFormat(if (s.clock24) "HH:mm" else "h:mm", Locale.getDefault()).format(Date(now)) }
     val date = remember(now / 60000) { SimpleDateFormat("EEEE d. MMMM", Locale.getDefault()).format(Date(now)).replaceFirstChar { it.uppercase() } }
+    val refreshKey = now / (5 * 60_000)
     fun sp(d: Dp) = with(density) { d.toSp() }
-    // Ťuknutie na čas a dátum otvorí zvolenú aplikáciu; počasie má vlastnú.
+    // Ťuknutie na čas a dátum otvorí zvolenú aplikáciu; počasie a udalosť majú vlastné.
     val clockClick = Modifier.clip(RoundedCornerShape(12.dp)).clickable { ui.openClock() }
-    Box(Modifier.fillMaxSize().padding(horizontal = 6.dp), contentAlignment = Alignment.CenterStart) {
-        when (s.clockStyle) {
-            ClockStyle.LARGE -> Column {
-                val tSize = minOf(if (s.clockDate || s.showWeather) hDp * 0.58f else hDp * 0.82f, wDp * 0.3f)
-                val small = minOf(hDp * 0.14f, 22.dp)
+    val lines = (if (s.clockDate) 1 else 0) + (if (s.showEvents) 1 else 0)
+    when (s.clockStyle) {
+        ClockStyle.LARGE -> Box(Modifier.fillMaxSize().padding(horizontal = 6.dp), contentAlignment = Alignment.CenterStart) {
+            Column {
+                val tSize = minOf(hDp * (0.82f - 0.14f * lines), wDp * 0.3f)
+                val small = minOf(hDp * 0.13f, 22.dp)
                 Column(clockClick) {
                     Text(time, style = labelStyle(s, sp(tSize)), fontWeight = FontWeight.Light, fontFamily = ff, maxLines = 1)
                 }
@@ -366,31 +400,38 @@ private fun ClockView(ui: LauncherUi, s: Settings, wDp: Dp, hDp: Dp) {
                         WeatherChip(ui, s, sp(small), small * 1.1f)
                     }
                 }
+                EventLine(ui, s, sp(small), refreshKey)
             }
-            ClockStyle.STACKED -> Column {
+        }
+        ClockStyle.STACKED -> Box(Modifier.fillMaxSize().padding(horizontal = 6.dp), contentAlignment = Alignment.CenterStart) {
+            Column {
                 val parts = time.split(":")
-                val tSize = minOf(if (s.clockDate || s.showWeather) hDp * 0.33f else hDp * 0.44f, wDp * 0.5f)
-                val small = minOf(hDp * 0.1f, 18.dp)
+                val tSize = minOf(hDp * (0.44f - 0.06f * lines), wDp * 0.5f)
+                val small = minOf(hDp * 0.09f, 18.dp)
                 Column(clockClick) {
                     Text(parts.getOrElse(0) { "" }, style = labelStyle(s, sp(tSize)), fontWeight = FontWeight.Bold, fontFamily = ff, lineHeight = sp(tSize))
                     Text(parts.getOrElse(1) { "" }, style = labelStyle(s, sp(tSize), MaterialTheme.colorScheme.primary), fontWeight = FontWeight.Bold, fontFamily = ff, lineHeight = sp(tSize))
                     if (s.clockDate) Text(date, style = labelStyle(s, sp(small)), fontFamily = ff, maxLines = 1)
                 }
                 if (s.showWeather) WeatherChip(ui, s, sp(small), small * 1.1f)
+                EventLine(ui, s, sp(small), refreshKey)
             }
-            ClockStyle.MINIMAL -> Row(verticalAlignment = Alignment.CenterVertically) {
-                val tSize = minOf(hDp * 0.5f, wDp * 0.16f)
-                Row(clockClick, verticalAlignment = Alignment.CenterVertically) {
-                    Text(time, style = labelStyle(s, sp(tSize)), fontWeight = FontWeight.Medium, fontFamily = ff)
-                    if (s.clockDate) {
-                        Spacer(Modifier.width(10.dp))
-                        Text(date, style = labelStyle(s, sp(tSize * 0.42f)), fontFamily = ff, maxLines = 2)
+        }
+        // Malé: čas v ľavom hornom rohu, počasie hneď vedľa, pod tým dátum a udalosť.
+        ClockStyle.MINIMAL -> Box(Modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 2.dp), contentAlignment = Alignment.TopStart) {
+            Column {
+                val tSize = minOf(hDp * (0.78f - 0.17f * lines), wDp * 0.24f)
+                val small = minOf(tSize * 0.36f, 20.dp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(time, style = labelStyle(s, sp(tSize)), fontWeight = FontWeight.Medium, fontFamily = ff,
+                        maxLines = 1, lineHeight = sp(tSize), modifier = clockClick)
+                    if (s.showWeather) {
+                        Spacer(Modifier.width(12.dp))
+                        WeatherChip(ui, s, sp(tSize * 0.45f), tSize * 0.45f)
                     }
                 }
-                if (s.showWeather) {
-                    Spacer(Modifier.width(10.dp))
-                    WeatherChip(ui, s, sp(tSize * 0.5f), tSize * 0.5f)
-                }
+                if (s.clockDate) Text(date, style = labelStyle(s, sp(small)), fontFamily = ff, maxLines = 1, modifier = clockClick)
+                EventLine(ui, s, sp(small), refreshKey)
             }
         }
     }

@@ -16,6 +16,10 @@ import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.key
@@ -435,6 +439,98 @@ fun newFavFolder(name: String): String {
     return id
 }
 
+// ---------------- kalendár ----------------
+
+/** „Váš program“ – nadchádzajúce udalosti zoskupené po dňoch, ako v Niagare. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AgendaSheet(ui: LauncherUi) {
+    val ctx = LocalContext.current
+    var days by remember { mutableStateOf(45) }
+    val events by produceState<List<sk.fold.launcher.data.CalEvent>?>(null, days) {
+        value = withContext(Dispatchers.IO) { sk.fold.launcher.data.Agenda.load(ctx, days) }
+    }
+    val dayFmt = remember { java.time.format.DateTimeFormatter.ofPattern("EEE d. M.", java.util.Locale.getDefault()) }
+    val timeFmt = remember { java.text.SimpleDateFormat("H:mm", java.util.Locale.getDefault()) }
+    val accent = Color(0xFFB4B8FF)
+    ModalBottomSheet(
+        onDismissRequest = { ui.sheet = null },
+        sheetState = rememberModalBottomSheetState(),
+        containerColor = Color(0xFF14142A),
+        contentColor = PopupText,
+    ) {
+        Text("Váš program", fontSize = 22.sp, modifier = Modifier.padding(start = 24.dp, bottom = 8.dp))
+        val list = events
+        if (list == null) {
+            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            return@ModalBottomSheet
+        }
+        val groups = list.groupBy { it.day }.toSortedMap()
+        LazyColumn(Modifier.fillMaxWidth().padding(horizontal = 24.dp), contentPadding = PaddingValues(bottom = 32.dp)) {
+            if (groups.isEmpty()) {
+                item { Text("Žiadne nadchádzajúce udalosti", color = PopupSub, modifier = Modifier.padding(vertical = 12.dp)) }
+                item { NewEventRow(accent) }
+            }
+            var first = true
+            groups.forEach { (day, evs) ->
+                val isFirst = first
+                first = false
+                item(key = "h$day") {
+                    Row(Modifier.padding(top = 16.dp, bottom = 6.dp), verticalAlignment = Alignment.Bottom) {
+                        Text(day.format(dayFmt), fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                        Spacer(Modifier.width(6.dp))
+                        Text(sk.fold.launcher.data.Agenda.relative(day), fontSize = 12.sp, color = PopupSub)
+                    }
+                }
+                items(evs, key = { "${it.id}-${it.begin}" }) { e ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { sk.fold.launcher.data.Agenda.open(ctx, e) }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.width(4.dp).height(34.dp).clip(RoundedCornerShape(2.dp)).background(Color(e.color or 0xFF000000.toInt())))
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(e.title, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            if (!e.allDay) Text(timeFmt.format(java.util.Date(e.begin)) + " – " + timeFmt.format(java.util.Date(e.end)),
+                                fontSize = 13.sp, color = PopupSub)
+                            if (e.location.isNotBlank()) Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Filled.Place, null, tint = PopupSub, modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text(e.location, fontSize = 13.sp, color = PopupSub, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
+                }
+                if (isFirst) item(key = "new") { NewEventRow(accent) }
+            }
+            item(key = "more") {
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { days += 60 }.padding(vertical = 14.dp),
+                    horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.KeyboardArrowDown, null, tint = accent)
+                    Text("Viac", color = accent, fontSize = 15.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NewEventRow(accent: Color) {
+    val ctx = LocalContext.current
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { sk.fold.launcher.data.Agenda.newEvent(ctx) }
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Filled.Add, null, tint = accent, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(10.dp))
+        Text("Nová udalosť", color = accent, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+    }
+}
+
 // ---------------- obľúbené ----------------
 
 /** Úprava obľúbených – poradie sa mení ťahaním (podrž riadok alebo ťahaj za úchyt). */
@@ -600,6 +696,7 @@ fun SheetHost(ui: LauncherUi, screen: Screen, s: Settings) {
         Sheet.Favorites -> FavoritesEditor(ui) { ui.sheet = null }
         Sheet.ClockSettings -> ClockSettingsPage(ui) { ui.sheet = null }
         Sheet.AssistantSettings -> AssistantPage(ui) { ui.sheet = null }
+        Sheet.Agenda -> AgendaSheet(ui)
         is Sheet.FavFolder -> FavFolderSheet(ui, sh.id)
         is Sheet.FavFolderApps -> AppPicker("Obsah priečinka", s.favFolders[sh.id]?.apps ?: emptyList(), onClose = { ui.sheet = Sheet.FavFolder(sh.id) }) { keys ->
             editFavFolder(sh.id) { it.copy(apps = keys) }

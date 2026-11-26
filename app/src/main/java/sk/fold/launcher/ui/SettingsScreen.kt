@@ -567,6 +567,10 @@ fun ClockSettingsPage(ui: LauncherUi, onClose: () -> Unit) {
                     ChoiceRow("Štýl", ClockStyle.entries, s.clockStyle, { it.label }) { v -> edit { it.copy(clockStyle = v) } }
                     SwitchRow("24-hodinový čas", checked = s.clock24) { v -> edit { it.copy(clock24 = v) } }
                     SwitchRow("Dátum", checked = s.clockDate) { v -> edit { it.copy(clockDate = v) } }
+                    SwitchRow("Udalosť z kalendára pod dátumom", "Ťuknutím sa otvorí prehľad nasledujúcich udalostí", s.showEvents) { v ->
+                        edit { it.copy(showEvents = v) }
+                        if (v && !sk.fold.launcher.data.Agenda.hasPermission(ctx)) act.requestCalendar()
+                    }
                     ClickRow("Ťuknutie na čas a dátum otvorí", appName(s.clockApp) ?: "Budíky (predvolené)") { picking = "clock" }
                 }
             }
