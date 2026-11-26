@@ -55,7 +55,16 @@ fun LauncherRoot(ui: LauncherUi) {
     SideEffect { ui.scope = scope }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val screen = if (maxWidth >= 600.dp) Screen.INNER else Screen.COVER
+        // Vonkajší / vnútorný displej podľa najmenšej šírky, na šírku podľa pomeru strán – každý má vlastné rozloženie.
+        val innerDisplay = androidx.compose.ui.platform.LocalConfiguration.current.smallestScreenWidthDp >= 600
+        val land = maxWidth > maxHeight
+        val screen = when {
+            innerDisplay && land -> Screen.INNER_LAND
+            innerDisplay -> Screen.INNER
+            land -> Screen.COVER_LAND
+            else -> Screen.COVER
+        }
+        remember(screen) { Store.ensureLandscape(screen); 0 }
         LaunchedEffect(screen) {
             ui.screen = screen
             ui.selectedId = null

@@ -29,8 +29,16 @@ object Grid {
 
 enum class ItemType { APP, SHORTCUT, WIDGET, FOLDER, CLOCK, FAVORITES, SEARCH, ASSISTANT }
 
-/** COVER = vonkajší displej (zložený Fold), INNER = vnútorný (rozložený). */
-enum class Screen { COVER, INNER }
+/** COVER = vonkajší displej (zložený Fold), INNER = vnútorný (rozložený); _LAND = na šírku (vlastné rozloženie). */
+enum class Screen {
+    COVER, INNER, COVER_LAND, INNER_LAND;
+
+    val isCover: Boolean get() = this == COVER || this == COVER_LAND
+    val isLand: Boolean get() = this == COVER_LAND || this == INNER_LAND
+    /** Rozloženie na výšku pre ten istý displej. */
+    val portrait: Screen get() = if (isCover) COVER else INNER
+    val label: String get() = (if (isCover) "vonkajší" else "vnútorný") + (if (isLand) " na šírku" else " na výšku")
+}
 
 data class HomeItem(
     val id: Long,

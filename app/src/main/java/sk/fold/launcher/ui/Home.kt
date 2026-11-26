@@ -178,7 +178,7 @@ fun HomeScreen(ui: LauncherUi, screen: Screen, layout: ScreenLayout, s: Settings
             }
         }
         if (s.floatAssist) {
-            val fp = (if (screen == Screen.COVER) s.floatCoverPage else s.floatInnerPage).coerceIn(0, layout.pages - 1)
+            val fp = (if (screen.isCover) s.floatCoverPage else s.floatInnerPage).coerceIn(0, layout.pages - 1)
             val w = constraints.maxWidth.toFloat()
             val hArea = constraints.maxHeight.toFloat()
             // Len na jednej stránke: tlačidlo sa posúva spolu so stránkou pri listovaní.
@@ -202,8 +202,8 @@ private fun FloatingAssistant(ui: LauncherUi, screen: Screen, s: Settings, areaW
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
     val sizePx = with(density) { s.floatSize.dp.toPx() }
-    val fx = if (screen == Screen.COVER) s.floatCoverX else s.floatInnerX
-    val fy = if (screen == Screen.COVER) s.floatCoverY else s.floatInnerY
+    val fx = if (screen.isCover) s.floatCoverX else s.floatInnerX
+    val fy = if (screen.isCover) s.floatCoverY else s.floatInnerY
     var drag by remember { mutableStateOf(Offset.Zero) }
     var dragging by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -236,7 +236,7 @@ private fun FloatingAssistant(ui: LauncherUi, screen: Screen, s: Settings, areaW
                         val nx = ((curX + drag.x).coerceIn(0f, areaW - sizePx) / (areaW - sizePx).coerceAtLeast(1f)).coerceIn(0f, 1f)
                         val ny = ((curY + drag.y).coerceIn(0f, areaH - sizePx) / (areaH - sizePx).coerceAtLeast(1f)).coerceIn(0f, 1f)
                         Store.editSettings {
-                            if (screen == Screen.COVER) it.copy(floatCoverX = nx, floatCoverY = ny)
+                            if (screen.isCover) it.copy(floatCoverX = nx, floatCoverY = ny)
                             else it.copy(floatInnerX = nx, floatInnerY = ny)
                         }
                         drag = Offset.Zero; dragging = false
@@ -252,7 +252,7 @@ private fun FloatingAssistant(ui: LauncherUi, screen: Screen, s: Settings, areaW
                 Store.editSettings {
                     val p = ui.page
                     val n = it.copy(floatAllPages = !it.floatAllPages)
-                    if (screen == Screen.COVER) n.copy(floatCoverPage = p) else n.copy(floatInnerPage = p)
+                    if (screen.isCover) n.copy(floatCoverPage = p) else n.copy(floatInnerPage = p)
                 }
             }
             HomeMenuItem("Väčšie", Icons.Filled.Add) { Store.editSettings { it.copy(floatSize = (it.floatSize + 8f).coerceAtMost(112f)) } }
@@ -291,7 +291,7 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
     val items = layout.items.filter { it.page == page }
-    val margin = if (screen == Screen.COVER) 14.dp else 6.dp
+    val margin = if (screen.isCover) 14.dp else 6.dp
     BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = margin, vertical = 2.dp)) {
         // Bunky podľa zvoleného počtu stĺpcov a riadkov – plocha využije celú výšku.
         val pageW = constraints.maxWidth.toFloat()

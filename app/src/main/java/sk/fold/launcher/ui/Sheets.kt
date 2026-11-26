@@ -773,7 +773,7 @@ fun SheetHost(ui: LauncherUi, screen: Screen, s: Settings) {
             confirmButton = {
                 TextButton(onClick = {
                     val l = Store.layout(screen).value
-                    l.items.filter { it.page == ui.page && it.type == ItemType.WIDGET }.forEach { Widgets.delete(it.widgetId) }
+                    l.items.filter { it.page == ui.page && it.type == ItemType.WIDGET }.forEach { Widgets.release(it.widgetId, it.id) }
                     Store.editLayout(screen) { it.removePage(ui.page) }
                     ui.sheet = null
                 }) { Text("Odstrániť") }

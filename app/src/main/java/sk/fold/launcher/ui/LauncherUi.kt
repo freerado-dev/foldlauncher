@@ -243,13 +243,13 @@ class LauncherUi(val activity: MainActivity) {
     /** Zapne plávajúce tlačidlo asistenta na aktuálnej stránke. */
     fun enableFloatingAssistant() {
         Store.editSettings {
-            if (screen == Screen.COVER) it.copy(floatAssist = true, floatCoverPage = page)
+            if (screen.isCover) it.copy(floatAssist = true, floatCoverPage = page)
             else it.copy(floatAssist = true, floatInnerPage = page)
         }
     }
 
     fun remove(item: HomeItem) {
-        if (item.type == ItemType.WIDGET) Widgets.delete(item.widgetId)
+        if (item.type == ItemType.WIDGET) Widgets.release(item.widgetId, item.id)
         Store.editLayout(screen) { it.remove(item.id) }
         if (selectedId == item.id) selectedId = null
     }

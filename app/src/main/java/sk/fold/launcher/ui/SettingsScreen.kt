@@ -166,6 +166,8 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
     val s by Store.settings.collectAsState()
     val cover by Store.layout(Screen.COVER).collectAsState()
     val inner by Store.layout(Screen.INNER).collectAsState()
+    val coverLand by Store.layout(Screen.COVER_LAND).collectAsState()
+    val innerLand by Store.layout(Screen.INNER_LAND).collectAsState()
     val ctx = LocalContext.current
     val act = ui.activity
     val tick = ui.resumeTick
@@ -236,7 +238,7 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
             item {
                 Group {
                     Text(
-                        "Aktuálne: ${if (screen == Screen.COVER) "vonkajší" else "vnútorný"} displej. Každý displej má vlastné rozloženie. " +
+                        "Aktuálne: ${screen.label}. Každý displej má vlastné rozloženie na výšku aj na šírku. " +
                             "Mriežka vyplní celú výšku plochy. Viac riadkov = lepšie využitie výšky. Pri zmene hustoty sa prvky prepočítajú pomerne.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
@@ -253,6 +255,18 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                     SliderRow("Vnútorný displej – riadky", inner.rows.toFloat(), 4f..28f, 23, { "${it.roundToInt()}" }) { v ->
                         Store.editLayout(Screen.INNER) { it.rescale(it.cols, v.roundToInt()) }
                     }
+                    SliderRow("Vonkajší na šírku – stĺpce", coverLand.cols.toFloat(), 4f..28f, 23, { "${it.roundToInt()}" }) { v ->
+                        Store.editLayout(Screen.COVER_LAND) { it.rescale(v.roundToInt(), it.rows) }
+                    }
+                    SliderRow("Vonkajší na šírku – riadky", coverLand.rows.toFloat(), 3f..20f, 16, { "${it.roundToInt()}" }) { v ->
+                        Store.editLayout(Screen.COVER_LAND) { it.rescale(it.cols, v.roundToInt()) }
+                    }
+                    SliderRow("Vnútorný na šírku – stĺpce", innerLand.cols.toFloat(), 4f..28f, 23, { "${it.roundToInt()}" }) { v ->
+                        Store.editLayout(Screen.INNER_LAND) { it.rescale(v.roundToInt(), it.rows) }
+                    }
+                    SliderRow("Vnútorný na šírku – riadky", innerLand.rows.toFloat(), 4f..28f, 23, { "${it.roundToInt()}" }) { v ->
+                        Store.editLayout(Screen.INNER_LAND) { it.rescale(it.cols, v.roundToInt()) }
+                    }
                     SwitchRow("Zobraziť mriežku pri úpravách", checked = s.showGrid) { v -> edit { it.copy(showGrid = v) } }
                     SwitchRow("Zamknúť rozloženie", "Zabráni náhodnému presunu", s.lockLayout) { v -> edit { it.copy(lockLayout = v) } }
                     PopupColorRow(s)
@@ -265,6 +279,9 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                     ClickRow("Upraviť plochu", "Pridávanie widgetov, presun a zmena veľkosti") { onClose(); ui.startEdit() }
                     ClickRow("Skopírovať vonkajší → vnútorný") { confirmCopy = Screen.COVER to Screen.INNER }
                     ClickRow("Skopírovať vnútorný → vonkajší") { confirmCopy = Screen.INNER to Screen.COVER }
+                    if (screen.isLand) ClickRow("Obnoviť rozloženie na šírku podľa výšky", "Zahodí úpravy na šírku pre ${screen.label}") {
+                        confirmCopy = screen.portrait to screen
+                    }
                 }
             }
 
@@ -430,7 +447,7 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
         AlertDialog(
             onDismissRequest = { confirmCopy = null },
             title = { Text("Prepísať rozloženie?") },
-            text = { Text("Rozloženie ${if (to == Screen.INNER) "vnútorného" else "vonkajšieho"} displeja sa nahradí kópiou. Widgety sa nekopírujú.") },
+            text = { Text("Rozloženie „${to.label}“ sa nahradí kópiou z „${from.label}“." + if (from.portrait == to.portrait) "" else " Widgety sa nekopírujú.") },
             confirmButton = {
                 TextButton(onClick = {
                     Store.copyLayout(from, to).forEach { Widgets.delete(it) }

@@ -14,17 +14,14 @@ import kotlin.math.roundToInt
 object Store {
     private lateinit var sp: SharedPreferences
     val settings = MutableStateFlow(Settings())
-    private val layouts = mapOf(
-        Screen.COVER to MutableStateFlow(defaultLayout(Screen.COVER)),
-        Screen.INNER to MutableStateFlow(defaultLayout(Screen.INNER)),
-    )
+    private val layouts = Screen.entries.associateWith { MutableStateFlow(defaultLayout(it)) }
     private val ids = AtomicLong(System.currentTimeMillis())
 
     /** Posledná zobrazená obrazovka a stránka – sem pridávajú aj iné aplikácie (pripnutie). */
     @Volatile var lastScreen = Screen.COVER
     @Volatile var lastPage = 0
     /** Veľkosť bunky v dp pre každú obrazovku (aktualizuje UI). */
-    val cellDp = mutableMapOf(Screen.COVER to (68f to 68f), Screen.INNER to (72f to 72f))
+    val cellDp = Screen.entries.associateWith { 70f to 70f }.toMutableMap()
 
     fun newId(): Long = ids.incrementAndGet()
 
@@ -56,6 +53,7 @@ object Store {
                 // Vyhľadávacia lišta na ploche bola zrušená – zoznam aplikácií sa otvára potiahnutím nahor.
                 val l = layoutFromJson(JSONObject(j), s)
                 layouts.getValue(s).value = l.copy(items = l.items.filter { it.type != ItemType.SEARCH })
+                if (s.isLand) sp.edit().putBoolean("land_init_${s.name}", true).apply()
             }
         }
     }
@@ -77,7 +75,25 @@ object Store {
         sp.edit().putString("settings", settingsToJson(n).toString()).apply()
     }
 
-    fun defaultLayout(s: Screen) = if (s == Screen.COVER) ScreenLayout(6, 12) else ScreenLayout(12, 10)
+    fun defaultLayout(s: Screen) = when (s) {
+        Screen.COVER -> ScreenLayout(6, 12)
+        Screen.INNER -> ScreenLayout(12, 10)
+        Screen.COVER_LAND -> ScreenLayout(12, 6)
+        Screen.INNER_LAND -> ScreenLayout(14, 9)
+    }
+
+    /** Rozloženie na šírku vznikne pri prvom použití ako kópia rozloženia na výšku (widgety zdieľajú to isté ID). */
+    fun ensureLandscape(s: Screen) {
+        if (!s.isLand || sp.getBoolean("land_init_${s.name}", false)) return
+        sp.edit().putBoolean("land_init_${s.name}", true).apply()
+        val src = layout(s.portrait).value
+        val d = defaultLayout(s)
+        editLayout(s) { src.copy(items = src.items.map { it.copy(id = newId()) }).rescale(d.cols, d.rows) }
+    }
+
+    /** Widget sa smie uvoľniť len vtedy, keď ho už nepoužíva žiadne iné rozloženie. */
+    fun widgetUsedElsewhere(widgetId: Int, exceptItem: Long): Boolean =
+        Screen.entries.any { sc -> layout(sc).value.items.any { it.type == ItemType.WIDGET && it.widgetId == widgetId && it.id != exceptItem } }
 
     // ---------- umiestňovanie ----------
 
@@ -141,13 +157,16 @@ object Store {
 
     /** Skopíruje rozloženie jednej obrazovky na druhú (bez widgetov, tie majú vlastné ID). */
     fun copyLayout(from: Screen, to: Screen): List<Int> {
+        // V rámci toho istého displeja (výška ↔ šírka) widgety zdieľajú ID, inak sa nekopírujú.
+        val keepWidgets = from.portrait == to.portrait
         val src = layout(from).value
         val dst = layout(to).value
-        val removedWidgets = dst.items.filter { it.type == ItemType.WIDGET }.map { it.widgetId }
-        val copied = src.copy(items = src.items.filter { it.type != ItemType.WIDGET }.map { it.copy(id = newId()) })
+        val oldWidgets = dst.items.filter { it.type == ItemType.WIDGET }.map { it.widgetId }
+        val copied = src.copy(items = src.items.filter { keepWidgets || it.type != ItemType.WIDGET }.map { it.copy(id = newId()) })
             .rescale(dst.cols, dst.rows)
         editLayout(to) { copied }
-        return removedWidgets
+        // uvoľniť len widgety, ktoré už nepoužíva žiadne rozloženie
+        return oldWidgets.filter { id -> Screen.entries.none { sc -> layout(sc).value.items.any { it.type == ItemType.WIDGET && it.widgetId == id } } }
     }
 
     /** Odstráni z plochy a obľúbených aplikácie odinštalovaného balíka. */

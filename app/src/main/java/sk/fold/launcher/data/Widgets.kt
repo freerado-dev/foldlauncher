@@ -47,6 +47,11 @@ object Widgets {
     fun delete(id: Int) {
         if (id >= 0) runCatching { host.deleteAppWidgetId(id) }
     }
+
+    /** Uvoľní widget len ak ho nepoužíva iné rozloženie (napr. na šírku / na výšku). */
+    fun release(id: Int, itemId: Long) {
+        if (!Store.widgetUsedElsewhere(id, itemId)) delete(id)
+    }
 }
 
 class LauncherWidgetHost(ctx: Context, id: Int) : AppWidgetHost(ctx, id) {
