@@ -103,4 +103,9 @@ data class Settings(
     val badgeSize: Float = 22f,
     /** Čo spustí tlačidlo asistenta ("" = predvolený asistent systému). */
     val assistantKey: String = "",
+    /** Plávajúce tlačidlo asistenta mimo mriežky (pozícia ako podiel plochy 0..1, zvlášť pre každý displej). */
+    val floatAssist: Boolean = false,
+    val floatSize: Float = 56f,
+    val floatCoverX: Float = 0.85f, val floatCoverY: Float = 0.8f,
+    val floatInnerX: Float = 0.9f, val floatInnerY: Float = 0.8f,
 )

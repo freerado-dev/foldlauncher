@@ -92,6 +92,12 @@ fun ItemMenu(ui: LauncherUi, item: HomeItem, dismiss: () -> Unit) {
         ItemType.ASSISTANT -> {
             MenuRow("Vybrať asistenta", Icons.Filled.Mic) { dismiss(); ui.sheet = Sheet.AssistantSettings }
             val hidden = item.label == ""
+            MenuRow("Voľne umiestniť (mimo mriežky)", Icons.Filled.OpenWith) {
+                dismiss()
+                ui.remove(item)
+                Store.editSettings { it.copy(floatAssist = true) }
+                ui.activity.toast("Tlačidlo môžeš podržať a presunúť kamkoľvek")
+            }
             MenuRow(if (hidden) "Zobraziť popis" else "Len ikona (bez popisu)", Icons.Filled.Edit) {
                 dismiss()
                 Store.editLayout(ui.screen) { l -> l.update(item.id) { it.copy(label = if (hidden) null else "") } }

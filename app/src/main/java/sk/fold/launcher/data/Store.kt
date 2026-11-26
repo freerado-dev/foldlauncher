@@ -252,6 +252,9 @@ object Store {
         put("favIcon3", s.favIconSize.toDouble()); put("favFolderColor", s.favFolderColor)
         put("clockApp", s.clockApp); put("weatherApp", s.weatherApp); put("showWeather", s.showWeather)
         put("weatherCity", s.weatherCity); put("weatherF", s.weatherF); put("badgeSize", s.badgeSize.toDouble()); put("assistantKey", s.assistantKey)
+        put("floatAssist", s.floatAssist); put("floatSize", s.floatSize.toDouble())
+        put("floatCoverX", s.floatCoverX.toDouble()); put("floatCoverY", s.floatCoverY.toDouble())
+        put("floatInnerX", s.floatInnerX.toDouble()); put("floatInnerY", s.floatInnerY.toDouble())
         put("favFolders", JSONObject().apply {
             s.favFolders.forEach { (k, f) -> put(k, JSONObject().put("name", f.name).put("apps", JSONArray(f.apps))) }
         })
@@ -313,6 +316,10 @@ object Store {
             weatherF = o.optBoolean("weatherF", d.weatherF),
             badgeSize = f("badgeSize", d.badgeSize),
             assistantKey = o.optString("assistantKey", ""),
+            floatAssist = o.optBoolean("floatAssist", d.floatAssist),
+            floatSize = f("floatSize", d.floatSize),
+            floatCoverX = f("floatCoverX", d.floatCoverX), floatCoverY = f("floatCoverY", d.floatCoverY),
+            floatInnerX = f("floatInnerX", d.floatInnerX), floatInnerY = f("floatInnerY", d.floatInnerY),
             favFolders = o.optJSONObject("favFolders")?.let { ff ->
                 ff.keys().asSequence().mapNotNull { k ->
                     val fo = ff.optJSONObject(k) ?: return@mapNotNull null

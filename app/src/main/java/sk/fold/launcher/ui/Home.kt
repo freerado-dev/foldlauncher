@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wallpaper
@@ -176,10 +177,74 @@ fun HomeScreen(ui: LauncherUi, screen: Screen, layout: ScreenLayout, s: Settings
                 HomePage(ui, screen, layout, page, s) { dragging = it }
             }
         }
+        if (s.floatAssist) FloatingAssistant(ui, screen, s, constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat())
         if (layout.pages > 1 && s.showPageDots) Box(Modifier.align(Alignment.BottomCenter)) { PageDots(layout.pages, pager.currentPage) }
         if (ui.editMode) {
             Box(Modifier.align(Alignment.TopCenter)) { SelectionBar(ui, screen, layout, s) }
             Box(Modifier.align(Alignment.BottomCenter)) { EditToolbar(ui, layout) }
+        }
+    }
+}
+
+/** Plávajúce tlačidlo asistenta – nad ikonami a widgetmi, na všetkých stránkach, kdekoľvek mimo mriežky. */
+@Composable
+private fun FloatingAssistant(ui: LauncherUi, screen: Screen, s: Settings, areaW: Float, areaH: Float) {
+    val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
+    val sizePx = with(density) { s.floatSize.dp.toPx() }
+    val fx = if (screen == Screen.COVER) s.floatCoverX else s.floatInnerX
+    val fy = if (screen == Screen.COVER) s.floatCoverY else s.floatInnerY
+    var drag by remember { mutableStateOf(Offset.Zero) }
+    var dragging by remember { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
+    val baseX = fx * (areaW - sizePx)
+    val baseY = fy * (areaH - sizePx)
+    val curX by rememberUpdatedState(baseX)
+    val curY by rememberUpdatedState(baseY)
+    val editing by rememberUpdatedState(ui.editMode)
+    Box(
+        Modifier
+            .offset {
+                IntOffset(
+                    (baseX + drag.x).coerceIn(0f, areaW - sizePx).roundToInt(),
+                    (baseY + drag.y).coerceIn(0f, areaH - sizePx).roundToInt(),
+                )
+            }
+            .size(s.floatSize.dp)
+            .zIndex(10f)
+            .graphicsLayer { if (dragging) { scaleX = 1.12f; scaleY = 1.12f } }
+            .pointerInput(screen, areaW, areaH, sizePx) {
+                itemGestures(
+                    editing = { editing },
+                    isWidget = { false },
+                    onSelect = {},
+                    onTap = { ui.openAssistant() },
+                    onLongPress = { buzz(haptic, HapticFeedbackType.LongPress); menu = true },
+                    onDragStart = { menu = false; dragging = true; drag = Offset.Zero },
+                    onDrag = { d -> drag += d },
+                    onDragEnd = {
+                        val nx = ((curX + drag.x).coerceIn(0f, areaW - sizePx) / (areaW - sizePx).coerceAtLeast(1f)).coerceIn(0f, 1f)
+                        val ny = ((curY + drag.y).coerceIn(0f, areaH - sizePx) / (areaH - sizePx).coerceAtLeast(1f)).coerceIn(0f, 1f)
+                        Store.editSettings {
+                            if (screen == Screen.COVER) it.copy(floatCoverX = nx, floatCoverY = ny)
+                            else it.copy(floatInnerX = nx, floatInnerY = ny)
+                        }
+                        drag = Offset.Zero; dragging = false
+                    },
+                )
+            },
+    ) {
+        AssistantIcon(s.floatSize.dp)
+        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            HomeMenuItem("Vybrať asistenta", Icons.Filled.Mic) { menu = false; ui.sheet = Sheet.AssistantSettings }
+            HomeMenuItem("Väčšie", Icons.Filled.Add) { Store.editSettings { it.copy(floatSize = (it.floatSize + 8f).coerceAtMost(112f)) } }
+            HomeMenuItem("Menšie", Icons.Filled.Remove) { Store.editSettings { it.copy(floatSize = (it.floatSize - 8f).coerceAtLeast(32f)) } }
+            HomeMenuItem("Vrátiť do mriežky", Icons.Filled.Apps) {
+                menu = false
+                Store.editSettings { it.copy(floatAssist = false) }
+                ui.addElement(ItemType.ASSISTANT)
+            }
+            HomeMenuItem("Odstrániť z plochy", Icons.Filled.Delete) { menu = false; Store.editSettings { it.copy(floatAssist = false) } }
         }
     }
 }
