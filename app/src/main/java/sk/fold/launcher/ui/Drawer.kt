@@ -13,6 +13,8 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -270,7 +272,7 @@ fun AppDrawer(ui: LauncherUi, s: Settings) {
                     itemsIndexed(visible, key = { _, e -> e.app.key }) { i, e ->
                         val firstOfLetter = query.isBlank() && s.drawerSort == DrawerSort.ALPHA && (i == 0 || visible[i - 1].letter != e.letter)
                         DrawerEntry(ui, e, s, list, if (list && firstOfLetter) e.letter else null,
-                            notifs[e.app.pkg]?.count ?: 0) { openApp(e.app) }
+                            notifs[e.app.pkg]?.count ?: 0, visible.firstOrNull()?.letter) { openApp(e.app) }
                     }
                     if (query.isNotBlank()) item {
                         Row(
@@ -322,7 +324,7 @@ private fun webSearch(ui: LauncherUi, q: String) {
 }
 
 @Composable
-private fun DrawerEntry(ui: LauncherUi, e: Entry, s: Settings, list: Boolean, letter: String?, badge: Int, onClick: () -> Unit) {
+private fun DrawerEntry(ui: LauncherUi, e: Entry, s: Settings, list: Boolean, letter: String?, badge: Int, firstLetter: String? = null, onClick: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
     val onSurface = MaterialTheme.colorScheme.onSurface
@@ -333,7 +335,12 @@ private fun DrawerEntry(ui: LauncherUi, e: Entry, s: Settings, list: Boolean, le
             onLongClick = { buzz(haptic, HapticFeedbackType.LongPress); menu = true },
         )
         if (list) {
-            Row(mod.fillMaxWidth().padding(vertical = 6.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Medzera medzi skupinami písmen (A, B, C…), okrem úplne prvej.
+            Row(
+                Modifier.padding(top = if (letter != null && letter != firstLetter) 18.dp else 0.dp)
+                    .then(mod).fillMaxWidth().padding(vertical = 6.dp, horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
                     letter ?: "", Modifier.width(26.dp), textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 15.sp, fontFamily = ff,
@@ -399,19 +406,25 @@ private fun AlphabetBar(letters: List<String>, modifier: Modifier, onActive: (St
                 }
             },
     ) {
-        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly, horizontalAlignment = Alignment.CenterHorizontally) {
+        // Celá abeceda sa vždy zmestí: výška písmena sa vypočíta z dostupnej výšky (nezávisle od veľkosti písma systému).
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+        val slot = maxHeight / letters.size.coerceAtLeast(1)
+        val fs = with(density) { (slot * 0.78f).coerceAtMost(15.dp).toSp() }
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
             letters.forEachIndexed { i, l ->
                 val f = if (active < 0) 0f else (1f - abs(i - active) / 4f).coerceIn(0f, 1f)
                 Text(
-                    l, fontSize = 11.sp, fontWeight = if (i == active) FontWeight.Bold else FontWeight.Medium,
+                    l, fontSize = fs, lineHeight = fs, maxLines = 1, fontWeight = if (i == active) FontWeight.Bold else FontWeight.Medium,
                     color = if (i == active) accent else normal,
-                    modifier = Modifier.graphicsLayer {
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.height(slot).wrapContentHeight().graphicsLayer {
                         scaleX = 1f + f * 1.1f
                         scaleY = 1f + f * 1.1f
                         translationX = -f * with(density) { 34.dp.toPx() }
                     },
                 )
             }
+        }
         }
     }
 }
