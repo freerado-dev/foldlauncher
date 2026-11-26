@@ -80,6 +80,8 @@ data class Settings(
     val clock24: Boolean = true,
     val clockDate: Boolean = true,
     val clockStyle: ClockStyle = ClockStyle.LARGE,
+    /** Farba písma hodín (0 = automatická podľa témy). */
+    val clockColor: Long = 0L,
     val favorites: List<String> = emptyList(),
     val hidden: Set<String> = emptySet(),
     val renames: Map<String, String> = emptyMap(),

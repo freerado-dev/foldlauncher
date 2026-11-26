@@ -636,6 +636,46 @@ private fun BeamSettings(ui: LauncherUi, s: Settings) {
     }
 }
 
+private val CLOCK_COLORS: List<Long> = listOf(
+    0xFFFFFFFF, 0xFFD0D0D6, 0xFF3ED6FF, 0xFF5B8DEF, 0xFFFF7A1A, 0xFFFFD60A, 0xFFFF453A, 0xFF30D158, 0xFFBF5AF2,
+)
+
+/** Farba písma hodín: automatická, predvoľby alebo vlastná HEX. */
+@Composable
+private fun ClockColorRow(s: Settings) {
+    var hex by remember { mutableStateOf(false) }
+    Text("Farba písma", Modifier.padding(start = 18.dp, end = 18.dp, top = 8.dp))
+    FlowRow(Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
+        Box(
+            Modifier.padding(4.dp).size(34.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant)
+                .border(if (s.clockColor == 0L) 3.dp else 1.dp,
+                    if (s.clockColor == 0L) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape)
+                .clickable { edit { it.copy(clockColor = 0L) } },
+            contentAlignment = Alignment.Center,
+        ) { Text("A", fontWeight = FontWeight.Bold) }
+        CLOCK_COLORS.forEach { c ->
+            Box(
+                Modifier.padding(4.dp).size(34.dp).clip(CircleShape).background(Color(c))
+                    .border(if (c == s.clockColor) 3.dp else 1.dp,
+                        if (c == s.clockColor) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape)
+                    .clickable { edit { it.copy(clockColor = c) } },
+            )
+        }
+        Box(
+            Modifier.padding(4.dp).size(34.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant).clickable { hex = true },
+            contentAlignment = Alignment.Center,
+        ) { Text("#", fontWeight = FontWeight.Bold) }
+    }
+    Text("A = automatická (biela, v téme Hologram tyrkysovo svietiaca)", style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 18.dp))
+    if (hex) TextDialog("Farba písma hodín (HEX)", "#%06X".format((if (s.clockColor == 0L) 0xFFFFFFFF else s.clockColor) and 0xFFFFFF),
+        "Napr. #FFB347", onDismiss = { hex = false }) { v ->
+        val c = v.removePrefix("#").toLongOrNull(16)
+        if (c != null && v.removePrefix("#").length == 6) edit { it.copy(clockColor = 0xFF000000 or c) }
+        hex = false
+    }
+}
+
 private val POPUP_COLORS: List<Long> = listOf(
     0xFF1C1C20, 0xFF000000, 0xFF14142A, 0xFF1E2A3A, 0xFF2A1E3A, 0xFF3A1E24,
     0xFF1E3A2A, 0xFF3A3A3E, 0xFF5B8DEF, 0xFFE8E8EE, 0xFFFFFFFF,
@@ -787,6 +827,7 @@ fun ClockSettingsPage(ui: LauncherUi, onClose: () -> Unit) {
                         edit { it.copy(showEvents = v) }
                         if (v && !sk.fold.launcher.data.Agenda.hasPermission(ctx)) act.requestCalendar()
                     }
+                    ClockColorRow(s)
                     ClickRow("Ťuknutie na čas a dátum otvorí", appName(s.clockApp) ?: "Budíky (predvolené)") { picking = "clock" }
                 }
             }

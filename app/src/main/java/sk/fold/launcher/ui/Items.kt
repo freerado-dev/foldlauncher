@@ -322,6 +322,9 @@ fun weatherIcon(code: Int, day: Boolean): ImageVector = when (code) {
     else -> Icons.Filled.Cloud
 }
 
+/** Farba písma hodín – vlastná alebo automatická (biela / tyrkysová v Hologram). */
+fun clockColor(s: Settings): Color = if (s.clockColor != 0L) Color(s.clockColor) else Color.White
+
 /** Počasie vedľa hodín – ikona a teplota, ťuknutím otvorí zvolenú aplikáciu. */
 @Composable
 private fun WeatherChip(ui: LauncherUi, s: Settings, textSize: TextUnit, iconSize: Dp) {
@@ -346,7 +349,7 @@ private fun WeatherChip(ui: LauncherUi, s: Settings, textSize: TextUnit, iconSiz
         Icon(if (now != null) weatherIcon(now.code, now.isDay) else Icons.Filled.Cloud, null,
             tint = (if (s.holo) Holo.Cyan else Color.White).copy(alpha = if (now != null) 1f else 0.6f), modifier = Modifier.size(iconSize))
         Spacer(Modifier.width(4.dp))
-        Text(if (now != null) "${now.temp}°" else "–°", style = labelStyle(s, textSize), fontFamily = LocalFont.current, maxLines = 1)
+        Text(if (now != null) "${now.temp}°" else "–°", style = labelStyle(s, textSize, clockColor(s)), fontFamily = LocalFont.current, maxLines = 1)
     }
 }
 
@@ -380,7 +383,7 @@ private fun EventLine(ui: LauncherUi, s: Settings, textSize: TextUnit, refreshKe
             Icon(Icons.Filled.Event, null, tint = Holo.Cyan, modifier = Modifier.size(with(LocalDensity.current) { textSize.toDp() } * 1.1f))
             Spacer(Modifier.width(6.dp))
         }
-        Text("${e.title} · $rel$time", style = labelStyle(s, textSize), fontFamily = ff, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text("${e.title} · $rel$time", style = labelStyle(s, textSize, clockColor(s)), fontFamily = ff, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -408,10 +411,10 @@ private fun ClockView(ui: LauncherUi, s: Settings, wDp: Dp, hDp: Dp) {
                 val tSize = minOf(hDp * (0.82f - 0.14f * lines), wDp * 0.3f)
                 val small = minOf(hDp * 0.13f, 22.dp)
                 Column(clockClick) {
-                    Text(time, style = labelStyle(s, sp(tSize)), fontWeight = FontWeight.Light, fontFamily = ff, maxLines = 1)
+                    Text(time, style = labelStyle(s, sp(tSize), clockColor(s)), fontWeight = FontWeight.Light, fontFamily = ff, maxLines = 1)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (s.clockDate) Text(date, style = labelStyle(s, sp(small)), fontFamily = ff, maxLines = 1, modifier = clockClick)
+                    if (s.clockDate) Text(date, style = labelStyle(s, sp(small), clockColor(s)), fontFamily = ff, maxLines = 1, modifier = clockClick)
                     if (s.showWeather) {
                         Spacer(Modifier.width(10.dp))
                         WeatherChip(ui, s, sp(small), small * 1.1f)
@@ -426,9 +429,9 @@ private fun ClockView(ui: LauncherUi, s: Settings, wDp: Dp, hDp: Dp) {
                 val tSize = minOf(hDp * (0.44f - 0.06f * lines), wDp * 0.5f)
                 val small = minOf(hDp * 0.09f, 18.dp)
                 Column(clockClick) {
-                    Text(parts.getOrElse(0) { "" }, style = labelStyle(s, sp(tSize)), fontWeight = FontWeight.Bold, fontFamily = ff, lineHeight = sp(tSize))
-                    Text(parts.getOrElse(1) { "" }, style = labelStyle(s, sp(tSize), MaterialTheme.colorScheme.primary), fontWeight = FontWeight.Bold, fontFamily = ff, lineHeight = sp(tSize))
-                    if (s.clockDate) Text(date, style = labelStyle(s, sp(small)), fontFamily = ff, maxLines = 1)
+                    Text(parts.getOrElse(0) { "" }, style = labelStyle(s, sp(tSize), clockColor(s)), fontWeight = FontWeight.Bold, fontFamily = ff, lineHeight = sp(tSize))
+                    Text(parts.getOrElse(1) { "" }, style = labelStyle(s, sp(tSize), if (s.clockColor != 0L) clockColor(s) else MaterialTheme.colorScheme.primary), fontWeight = FontWeight.Bold, fontFamily = ff, lineHeight = sp(tSize))
+                    if (s.clockDate) Text(date, style = labelStyle(s, sp(small), clockColor(s)), fontFamily = ff, maxLines = 1)
                 }
                 if (s.showWeather) WeatherChip(ui, s, sp(small), small * 1.1f)
                 EventLine(ui, s, sp(small), refreshKey, gap = small * 0.6f)
@@ -440,14 +443,14 @@ private fun ClockView(ui: LauncherUi, s: Settings, wDp: Dp, hDp: Dp) {
                 val tSize = minOf(hDp * (0.78f - 0.17f * lines), wDp * 0.24f)
                 val small = minOf(tSize * 0.36f, 20.dp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(time, style = labelStyle(s, sp(tSize)), fontWeight = FontWeight.Medium, fontFamily = ff,
+                    Text(time, style = labelStyle(s, sp(tSize), clockColor(s)), fontWeight = FontWeight.Medium, fontFamily = ff,
                         maxLines = 1, lineHeight = sp(tSize), modifier = clockClick)
                     if (s.showWeather) {
                         Spacer(Modifier.width(12.dp))
                         WeatherChip(ui, s, sp(tSize * 0.45f), tSize * 0.45f)
                     }
                 }
-                if (s.clockDate) Text(date, style = labelStyle(s, sp(small)), fontFamily = ff, maxLines = 1, modifier = clockClick)
+                if (s.clockDate) Text(date, style = labelStyle(s, sp(small), clockColor(s)), fontFamily = ff, maxLines = 1, modifier = clockClick)
                 EventLine(ui, s, sp(small), refreshKey, gap = tSize * 0.22f)
             }
         }

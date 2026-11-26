@@ -285,7 +285,7 @@ object Store {
         put("drawerIconSize", s.drawerIconSize.toDouble())
         put("badges", s.badges.name); put("favNotifText", s.favNotifText)
         put("doubleTap", s.doubleTap.name); put("swipeDown", s.swipeDown.name); put("swipeUp", s.swipeUp.name)
-        put("clock24", s.clock24); put("clockDate", s.clockDate); put("clockStyle", s.clockStyle.name)
+        put("clock24", s.clock24); put("clockDate", s.clockDate); put("clockStyle", s.clockStyle.name); put("clockColor", s.clockColor)
         put("favorites", JSONArray(s.favorites))
         put("hidden", JSONArray(s.hidden.toList()))
         put("renames", JSONObject().apply { s.renames.forEach { (k, v) -> put(k, v) } })
@@ -348,6 +348,7 @@ object Store {
             clock24 = o.optBoolean("clock24", d.clock24),
             clockDate = o.optBoolean("clockDate", d.clockDate),
             clockStyle = en(o.str("clockStyle"), d.clockStyle),
+            clockColor = o.optLong("clockColor", d.clockColor),
             favorites = o.optJSONArray("favorites")?.let { a -> List(a.length()) { a.getString(it) } } ?: emptyList(),
             hidden = o.optJSONArray("hidden")?.let { a -> List(a.length()) { a.getString(it) }.toSet() } ?: emptySet(),
             renames = ren?.keys()?.asSequence()?.associateWith { ren.getString(it) } ?: emptyMap(),
