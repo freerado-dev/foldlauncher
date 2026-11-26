@@ -24,6 +24,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Dehaze
@@ -177,6 +180,7 @@ fun ItemContent(ui: LauncherUi, item: HomeItem, s: Settings, wDp: Dp, hDp: Dp, d
         ItemType.CLOCK -> ClockView(ui, s, wDp, hDp)
         ItemType.FAVORITES -> FavoritesView(ui, s, hDp)
         ItemType.SEARCH -> {}
+        ItemType.ASSISTANT -> IconTile("Asistent", s, wDp, hDp, 0) { sz -> AssistantIcon(sz) }
     }
 }
 
@@ -209,6 +213,21 @@ private fun IconTile(label: String, s: Settings, wDp: Dp, hDp: Dp, badge: Int, i
 
 @Composable
 private fun FolderIcon(item: HomeItem, size: Dp, s: Settings) = FolderIconOf(item.apps, size, s)
+
+/** Tlačidlo hlasového asistenta – mikrofón v kruhu s „AI“ prechodom a iskrou. */
+@Composable
+fun AssistantIcon(size: Dp) {
+    val brush = Brush.linearGradient(listOf(Color(0xFF4285F4), Color(0xFF9B72CB), Color(0xFFD96570)))
+    Box(Modifier.size(size), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxSize().clip(CircleShape).background(brush), contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.Mic, null, tint = Color.White, modifier = Modifier.size(size * 0.52f))
+        }
+        Icon(
+            Icons.Filled.AutoAwesome, null, tint = Color.White,
+            modifier = Modifier.align(Alignment.TopEnd).size(size * 0.36f).offset(x = size * 0.04f, y = -size * 0.04f),
+        )
+    }
+}
 
 /** Klasická ikona priečinka pre obľúbené – farba podľa nastavenia. */
 @Composable

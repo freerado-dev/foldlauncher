@@ -14,7 +14,7 @@ enum class ThemeMode(val label: String) { AUTO("Podľa systému"), LIGHT("Svetl�
 enum class GestureAction(val label: String) {
     NONE("Nič"), DRAWER("Zoznam aplikácií"), SEARCH("Vyhľadávanie"), NOTIFICATIONS("Notifikácie"),
     QUICK_SETTINGS("Rýchle nastavenia"), LOCK("Zamknúť obrazovku"), EDIT("Upraviť plochu"),
-    SETTINGS("Nastavenia launchera"),
+    SETTINGS("Nastavenia launchera"), VOICE("Hlasový asistent"),
 }
 
 enum class BadgeStyle(val label: String) { NONE("Vypnuté"), DOT("Bodka"), COUNT("Počet") }
@@ -101,4 +101,6 @@ data class Settings(
     val weatherCity: String = "",
     val weatherF: Boolean = false,
     val badgeSize: Float = 22f,
+    /** Čo spustí tlačidlo asistenta ("" = predvolený asistent systému). */
+    val assistantKey: String = "",
 )

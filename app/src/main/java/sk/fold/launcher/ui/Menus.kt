@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.OpenWith
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
@@ -88,6 +89,7 @@ fun ItemMenu(ui: LauncherUi, item: HomeItem, dismiss: () -> Unit) {
         ItemType.FOLDER -> MenuRow("Upraviť obsah", Icons.Filled.Apps) { dismiss(); ui.sheet = Sheet.FolderApps(item.id) }
         ItemType.FAVORITES -> MenuRow("Upraviť obľúbené", Icons.Filled.Star) { dismiss(); ui.sheet = Sheet.Favorites }
         ItemType.CLOCK -> MenuRow("Nastavenia hodín a počasia", Icons.Filled.Schedule) { dismiss(); ui.sheet = Sheet.ClockSettings }
+        ItemType.ASSISTANT -> MenuRow("Vybrať asistenta", Icons.Filled.Mic) { dismiss(); ui.sheet = Sheet.AssistantSettings }
         else -> {}
     }
     if (item.type == ItemType.APP || item.type == ItemType.FOLDER || item.type == ItemType.SHORTCUT)

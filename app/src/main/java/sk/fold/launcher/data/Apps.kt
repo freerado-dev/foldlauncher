@@ -47,6 +47,7 @@ fun letterOf(label: String): String {
 class ExtraApp(val key: String, val label: String, val icon: android.graphics.drawable.Drawable?)
 
 const val ACTIVITY_PREFIX = "act:"
+const val VOICE_PREFIX = "voice:"
 
 object Apps {
     lateinit var la: LauncherApps
@@ -188,7 +189,35 @@ object Apps {
             }
     }
 
+    /** Hlasoví asistenti: všetko, čo vie spustiť hlasový príkaz alebo asistenta (Gemini, Google, Bixby…). */
+    fun voiceTargets(c: Context): List<ExtraApp> {
+        val pm = c.packageManager
+        val actions = listOf(
+            Intent.ACTION_VOICE_COMMAND to "hlasový príkaz",
+            Intent.ACTION_ASSIST to "asistent",
+            "android.speech.action.VOICE_SEARCH_HANDS_FREE" to "hlasové vyhľadávanie",
+        )
+        val out = LinkedHashMap<String, ExtraApp>()
+        for ((action, what) in actions) {
+            val list = runCatching { pm.queryIntentActivities(Intent(action), PackageManager.MATCH_ALL) }.getOrDefault(emptyList())
+            for (ri in list) {
+                val ai = ri.activityInfo ?: continue
+                if (ai.packageName == c.packageName || !ai.exported) continue
+                val cn = ComponentName(ai.packageName, ai.name)
+                if (out.values.any { it.key.endsWith("|" + cn.flattenToString()) }) continue
+                val appLabel = runCatching { pm.getApplicationLabel(ai.applicationInfo).toString() }.getOrDefault(ai.packageName)
+                val key = VOICE_PREFIX + action + "|" + cn.flattenToString()
+                out[key] = ExtraApp(key, "$appLabel – $what", runCatching { ri.loadIcon(pm) }.getOrNull())
+            }
+        }
+        return out.values.toList()
+    }
+
     fun labelForKey(c: Context, key: String): String? {
+        if (key.startsWith(VOICE_PREFIX)) {
+            val cn = ComponentName.unflattenFromString(key.substringAfter("|")) ?: return null
+            return runCatching { c.packageManager.getApplicationLabel(c.packageManager.getApplicationInfo(cn.packageName, 0)).toString() }.getOrNull()
+        }
         if (key.startsWith(ACTIVITY_PREFIX)) {
             val cn = ComponentName.unflattenFromString(key.removePrefix(ACTIVITY_PREFIX)) ?: return null
             return runCatching {
@@ -200,6 +229,13 @@ object Apps {
 
     /** Spustí kľúč aplikácie – bežnú aplikáciu aj skrytú aktivitu ("act:balík/trieda"). */
     fun launchKey(c: Context, key: String): Boolean {
+        if (key.startsWith(VOICE_PREFIX)) {
+            val action = key.removePrefix(VOICE_PREFIX).substringBefore("|")
+            val cn = ComponentName.unflattenFromString(key.substringAfter("|")) ?: return false
+            return runCatching {
+                c.startActivity(Intent(action).setComponent(cn).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }.isSuccess
+        }
         if (key.startsWith(ACTIVITY_PREFIX)) {
             val cn = ComponentName.unflattenFromString(key.removePrefix(ACTIVITY_PREFIX)) ?: return false
             return runCatching {

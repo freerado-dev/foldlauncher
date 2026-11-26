@@ -635,6 +635,7 @@ fun itemTitle(i: HomeItem, s: Settings): String = when (i.type) {
     ItemType.CLOCK -> "Hodiny"
     ItemType.FAVORITES -> "Obľúbené"
     ItemType.SEARCH -> "Vyhľadávanie"
+    ItemType.ASSISTANT -> "Asistent"
 }
 
 @Composable

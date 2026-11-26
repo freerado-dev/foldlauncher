@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.key
@@ -151,6 +152,7 @@ fun WidgetPicker(ui: LauncherUi, screen: Screen) {
                     item { ElementCard("Hodiny", "Čas a dátum", Icons.Filled.Schedule) { ui.sheet = null; ui.addElement(ItemType.CLOCK) } }
                     item { ElementCard("Obľúbené", "Zoznam ako Niagara", Icons.Filled.Star) { ui.sheet = null; ui.addElement(ItemType.FAVORITES) } }
                     item { ElementCard("Priečinok", "Skupina aplikácií", Icons.Filled.Folder) { ui.addElement(ItemType.FOLDER) } }
+                    item { ElementCard("Hlasový asistent", "Gemini, Google, Bixby…", Icons.Filled.Mic) { ui.sheet = null; ui.addElement(ItemType.ASSISTANT) } }
                 }
             }
             val g = groups
@@ -596,6 +598,7 @@ fun SheetHost(ui: LauncherUi, screen: Screen, s: Settings) {
         Sheet.Settings -> SettingsScreen(ui, screen) { ui.sheet = null }
         Sheet.Favorites -> FavoritesEditor(ui) { ui.sheet = null }
         Sheet.ClockSettings -> ClockSettingsPage(ui) { ui.sheet = null }
+        Sheet.AssistantSettings -> AssistantPage(ui) { ui.sheet = null }
         is Sheet.FavFolder -> FavFolderSheet(ui, sh.id)
         is Sheet.FavFolderApps -> AppPicker("Obsah priečinka", s.favFolders[sh.id]?.apps ?: emptyList(), onClose = { ui.sheet = Sheet.FavFolder(sh.id) }) { keys ->
             editFavFolder(sh.id) { it.copy(apps = keys) }

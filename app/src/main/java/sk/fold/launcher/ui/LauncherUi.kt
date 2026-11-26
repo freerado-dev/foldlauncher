@@ -34,6 +34,7 @@ sealed interface Sheet {
     data class RenameItem(val id: Long) : Sheet
     data object RemovePage : Sheet
     data object ClockSettings : Sheet
+    data object AssistantSettings : Sheet
     data class FavFolder(val id: String) : Sheet
     data class FavFolderApps(val id: String) : Sheet
     data class RenameFavFolder(val id: String) : Sheet
@@ -144,6 +145,7 @@ class LauncherUi(val activity: MainActivity) {
             GestureAction.LOCK -> SysActions.lock(activity)
             GestureAction.EDIT -> startEdit()
             GestureAction.SETTINGS -> sheet = Sheet.Settings
+            GestureAction.VOICE -> openAssistant()
         }
     }
 
@@ -158,8 +160,19 @@ class LauncherUi(val activity: MainActivity) {
             ItemType.FOLDER -> sheet = Sheet.Folder(item.id)
             ItemType.CLOCK -> openClock()
             ItemType.SEARCH -> openDrawer(search = true)
+            ItemType.ASSISTANT -> openAssistant()
             else -> {}
         }
+    }
+
+    /** Spustí zvoleného hlasového asistenta, inak predvoleného asistenta systému. */
+    fun openAssistant() {
+        val k = Store.settings.value.assistantKey
+        if (k.isNotEmpty() && Apps.launchKey(activity, k)) return
+        for (action in listOf(Intent.ACTION_VOICE_COMMAND, Intent.ACTION_ASSIST, "android.speech.action.VOICE_SEARCH_HANDS_FREE")) {
+            if (runCatching { activity.startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess) return
+        }
+        activity.toast("Nenašiel sa žiadny hlasový asistent")
     }
 
     fun openClock() {

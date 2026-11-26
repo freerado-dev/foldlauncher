@@ -27,7 +27,7 @@ object Grid {
     }
 }
 
-enum class ItemType { APP, SHORTCUT, WIDGET, FOLDER, CLOCK, FAVORITES, SEARCH }
+enum class ItemType { APP, SHORTCUT, WIDGET, FOLDER, CLOCK, FAVORITES, SEARCH, ASSISTANT }
 
 /** COVER = vonkajší displej (zložený Fold), INNER = vnútorný (rozložený). */
 enum class Screen { COVER, INNER }

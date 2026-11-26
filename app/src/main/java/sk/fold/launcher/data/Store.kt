@@ -98,6 +98,7 @@ object Store {
         ItemType.CLOCK -> span(s, 300f, 130f)
         ItemType.FAVORITES -> span(s, 300f, 330f)
         ItemType.SEARCH -> span(s, 320f, 54f)
+        ItemType.ASSISTANT -> span(s, 64f, 64f)
         else -> appSpan(s)
     }
 
@@ -250,7 +251,7 @@ object Store {
         put("showRecent", s.showRecent); put("showWork", s.showWork)
         put("favIcon3", s.favIconSize.toDouble()); put("favFolderColor", s.favFolderColor)
         put("clockApp", s.clockApp); put("weatherApp", s.weatherApp); put("showWeather", s.showWeather)
-        put("weatherCity", s.weatherCity); put("weatherF", s.weatherF); put("badgeSize", s.badgeSize.toDouble())
+        put("weatherCity", s.weatherCity); put("weatherF", s.weatherF); put("badgeSize", s.badgeSize.toDouble()); put("assistantKey", s.assistantKey)
         put("favFolders", JSONObject().apply {
             s.favFolders.forEach { (k, f) -> put(k, JSONObject().put("name", f.name).put("apps", JSONArray(f.apps))) }
         })
@@ -311,6 +312,7 @@ object Store {
             weatherCity = o.optString("weatherCity", ""),
             weatherF = o.optBoolean("weatherF", d.weatherF),
             badgeSize = f("badgeSize", d.badgeSize),
+            assistantKey = o.optString("assistantKey", ""),
             favFolders = o.optJSONObject("favFolders")?.let { ff ->
                 ff.keys().asSequence().mapNotNull { k ->
                     val fo = ff.optJSONObject(k) ?: return@mapNotNull null

@@ -52,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -158,6 +159,7 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
         "hidden" -> { HiddenApps { sub = null }; return }
         "pack" -> { IconPackPicker { sub = null }; return }
         "clock" -> { ClockSettingsPage(ui) { sub = null }; return }
+        "voice" -> { AssistantPage(ui) { sub = null }; return }
     }
     val s by Store.settings.collectAsState()
     val cover by Store.layout(Screen.COVER).collectAsState()
@@ -371,6 +373,7 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
             item { SectionTitle("Gestá") }
             item {
                 Group {
+                    ClickRow("Hlasový asistent", "Čo spustí tlačidlo asistenta na ploche a gesto „Hlasový asistent“") { sub = "voice" }
                     GestureRow("Dvojité ťuknutie", s.doubleTap) { v -> edit { it.copy(doubleTap = v) } }
                     GestureRow("Potiahnutie nahor", s.swipeUp) { v -> edit { it.copy(swipeUp = v) } }
                     GestureRow("Potiahnutie nadol", s.swipeDown) { v -> edit { it.copy(swipeDown = v) } }
@@ -590,5 +593,69 @@ fun ClockSettingsPage(ui: LauncherUi, onClose: () -> Unit) {
         edit { it.copy(weatherCity = v) }
         cityDialog = false
         if (v.isBlank() && !sk.fold.launcher.data.Weather.hasLocationPermission(ctx)) act.requestLocation()
+    }
+}
+
+
+/** Výber hlasového asistenta pre tlačidlo na ploche. */
+@Composable
+fun AssistantPage(ui: LauncherUi, onClose: () -> Unit) {
+    val s by Store.settings.collectAsState()
+    val apps by Apps.list.collectAsState()
+    val ctx = LocalContext.current
+    var picking by remember { mutableStateOf(false) }
+    val targets = remember { Apps.voiceTargets(ctx) }
+    BackHandler { if (picking) picking = false else onClose() }
+    if (picking) {
+        AppPicker("Aplikácia pre tlačidlo asistenta", listOfNotNull(s.assistantKey.ifEmpty { null }),
+            onClose = { picking = false }, single = true) { keys ->
+            edit { it.copy(assistantKey = keys.firstOrNull() ?: "") }
+            picking = false
+        }
+        return
+    }
+    val customApp = apps.firstOrNull { it.key == s.assistantKey }
+    FullSheet("Hlasový asistent", onClose = onClose) {
+        LazyColumn(Modifier.fillMaxSize()) {
+            item {
+                Text(
+                    "Vyber, čo spustí tlačidlo asistenta. Hlasovým príkazom pre Gemini alebo Google Asistenta ovládaš telefón aj " +
+                        "zariadenia Google Home. Predvolený asistent je ten, ktorý máš v Nastaveniach → Aplikácie → Predvolené aplikácie → Digitálny asistent.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                )
+            }
+            item {
+                Group {
+                    PackRow("Predvolený asistent systému", s.assistantKey.isEmpty()) { edit { it.copy(assistantKey = "") } }
+                }
+            }
+            if (targets.isNotEmpty()) {
+                item { SectionTitle("Hlasové príkazy a asistenti") }
+                item {
+                    Group {
+                        targets.forEach { tg ->
+                            Row(
+                                Modifier.fillMaxWidth().clickable { edit { it.copy(assistantKey = tg.key) } }.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                RadioButton(selected = s.assistantKey == tg.key, onClick = { edit { it.copy(assistantKey = tg.key) } })
+                                val img = remember(tg.key) { tg.icon?.let { sk.fold.launcher.data.IconCache.toBitmap(it, 96).asImageBitmap() } }
+                                if (img != null) androidx.compose.foundation.Image(img, null, Modifier.size(32.dp))
+                                Spacer(Modifier.width(12.dp))
+                                Text(tg.label)
+                            }
+                        }
+                    }
+                }
+            }
+            item { SectionTitle("Iné") }
+            item {
+                Group {
+                    ClickRow("Iná aplikácia…", customApp?.let { "Vybraté: " + labelOf(it, s) } ?: "Napr. aplikácia Gemini alebo Bixby") { picking = true }
+                    ClickRow("Vyskúšať", "Spustí aktuálne zvoleného asistenta") { ui.openAssistant() }
+                }
+            }
+        }
     }
 }
