@@ -340,7 +340,7 @@ private fun DrawerEntry(ui: LauncherUi, e: Entry, s: Settings, list: Boolean, le
                 )
                 Box {
                     AppIconImage(e.app, s.drawerIconSize.dp, s)
-                    BadgeMark(badge, s, Modifier.align(Alignment.TopEnd))
+                    BadgeMark(badge, s, Modifier.align(Alignment.Center))
                 }
                 Spacer(Modifier.width(14.dp))
                 Text(e.label, color = onSurface, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, fontFamily = ff)
@@ -349,7 +349,7 @@ private fun DrawerEntry(ui: LauncherUi, e: Entry, s: Settings, list: Boolean, le
             Column(mod.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Box {
                     AppIconImage(e.app, s.drawerIconSize.dp, s)
-                    BadgeMark(badge, s, Modifier.align(Alignment.TopEnd))
+                    BadgeMark(badge, s, Modifier.align(Alignment.Center))
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(e.label, color = onSurface, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,

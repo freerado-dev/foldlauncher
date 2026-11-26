@@ -43,6 +43,11 @@ fun letterOf(label: String): String {
     return if (c.isLetter()) c.toString() else "#"
 }
 
+/** Aktivita, ktorá nemá ikonu v zozname aplikácií (napr. Samsung Počasie), ale dá sa spustiť. */
+class ExtraApp(val key: String, val label: String, val icon: android.graphics.drawable.Drawable?)
+
+const val ACTIVITY_PREFIX = "act:"
+
 object Apps {
     lateinit var la: LauncherApps
     lateinit var um: UserManager
@@ -152,6 +157,58 @@ object Apps {
             c.startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:${a.pkg}"))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
+    }
+
+    /** Aplikácie počasia, ktoré nie sú v zozname aplikácií (Samsung Počasie a pod.). */
+    fun hiddenWeatherApps(c: Context): List<ExtraApp> {
+        val pm = c.packageManager
+        val known = list.value.map { it.component.flattenToString() }.toSet()
+        val words = listOf("weather", "počas", "pocas", "daemonapp", "accuweather", "meteo")
+        return runCatching { pm.queryIntentActivities(Intent(Intent.ACTION_MAIN), PackageManager.MATCH_ALL) }
+            .getOrDefault(emptyList())
+            .filter { ri ->
+                val ai = ri.activityInfo ?: return@filter false
+                val cn = ComponentName(ai.packageName, ai.name).flattenToString()
+                if (!ai.exported || cn in known) return@filter false
+                val label = ri.loadLabel(pm).toString()
+                val hay = (ai.packageName + " " + ai.name + " " + label).lowercase()
+                words.any { hay.contains(it) }
+            }
+            .distinctBy { it.activityInfo.packageName + "/" + it.activityInfo.name }
+            .take(20)
+            .map { ri ->
+                val ai = ri.activityInfo
+                val appLabel = runCatching { pm.getApplicationLabel(ai.applicationInfo).toString() }.getOrDefault(ai.packageName)
+                val actLabel = ri.loadLabel(pm).toString()
+                ExtraApp(
+                    ACTIVITY_PREFIX + ComponentName(ai.packageName, ai.name).flattenToString(),
+                    if (actLabel == appLabel) appLabel else "$appLabel – $actLabel",
+                    runCatching { ri.loadIcon(pm) }.getOrNull(),
+                )
+            }
+    }
+
+    fun labelForKey(c: Context, key: String): String? {
+        if (key.startsWith(ACTIVITY_PREFIX)) {
+            val cn = ComponentName.unflattenFromString(key.removePrefix(ACTIVITY_PREFIX)) ?: return null
+            return runCatching {
+                c.packageManager.getActivityInfo(cn, 0).loadLabel(c.packageManager).toString()
+            }.getOrNull()
+        }
+        return null
+    }
+
+    /** Spustí kľúč aplikácie – bežnú aplikáciu aj skrytú aktivitu ("act:balík/trieda"). */
+    fun launchKey(c: Context, key: String): Boolean {
+        if (key.startsWith(ACTIVITY_PREFIX)) {
+            val cn = ComponentName.unflattenFromString(key.removePrefix(ACTIVITY_PREFIX)) ?: return false
+            return runCatching {
+                c.startActivity(Intent(Intent.ACTION_MAIN).setComponent(cn).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }.isSuccess
+        }
+        val a = find(key) ?: return false
+        launch(c, a)
+        return true
     }
 
     private fun defaultFavorites(): List<String> {

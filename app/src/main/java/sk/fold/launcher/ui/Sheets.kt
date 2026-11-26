@@ -218,7 +218,8 @@ private fun WidgetCard(info: AppWidgetProviderInfo, screen: Screen, onClick: () 
 @Composable
 fun AppPicker(
     title: String, initial: List<String>, onClose: () -> Unit,
-    single: Boolean = false, onDone: (List<String>) -> Unit,
+    single: Boolean = false, extras: List<sk.fold.launcher.data.ExtraApp> = emptyList(),
+    onDone: (List<String>) -> Unit,
 ) {
     val apps by Apps.list.collectAsState()
     val s by Store.settings.collectAsState()
@@ -240,6 +241,23 @@ fun AppPicker(
             shape = RoundedCornerShape(24.dp),
         )
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
+            val ex = if (q.isBlank()) extras else extras.filter { norm(it.label).contains(norm(q)) }
+            if (ex.isNotEmpty()) {
+                item { SectionTitle("Bez ikony v zozname aplikácií") }
+                items(ex, key = { it.key }) { e ->
+                    val img = remember(e.key) { e.icon?.let { IconCache.toBitmap(it, 96).asImageBitmap() } }
+                    Row(
+                        Modifier.fillMaxWidth().clickable { onDone(listOf(e.key)) }.padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (img != null) Image(img, null, Modifier.size(36.dp)) else Spacer(Modifier.size(36.dp))
+                        Spacer(Modifier.width(14.dp))
+                        Text(e.label, Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        RadioButton(selected = e.key in selected, onClick = { onDone(listOf(e.key)) })
+                    }
+                }
+                item { SectionTitle("Všetky aplikácie") }
+            }
             items(shown, key = { it.first.key }) { (a, label) ->
                 val on = a.key in selected
                 Row(
@@ -377,7 +395,7 @@ fun FavFolderSheet(ui: LauncherUi, id: String) {
                             ) {
                                 Box {
                                     AppIconImage(a, iconSize, s)
-                                    BadgeMark(n?.count ?: 0, s, Modifier.align(Alignment.TopEnd))
+                                    BadgeMark(n?.count ?: 0, s, Modifier.align(Alignment.Center))
                                 }
                                 Spacer(Modifier.width(20.dp))
                                 Column(Modifier.weight(1f)) {

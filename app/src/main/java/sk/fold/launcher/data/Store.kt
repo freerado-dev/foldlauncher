@@ -250,7 +250,7 @@ object Store {
         put("showRecent", s.showRecent); put("showWork", s.showWork)
         put("favIcon3", s.favIconSize.toDouble()); put("favFolderColor", s.favFolderColor)
         put("clockApp", s.clockApp); put("weatherApp", s.weatherApp); put("showWeather", s.showWeather)
-        put("weatherCity", s.weatherCity); put("weatherF", s.weatherF)
+        put("weatherCity", s.weatherCity); put("weatherF", s.weatherF); put("badgeSize", s.badgeSize.toDouble())
         put("favFolders", JSONObject().apply {
             s.favFolders.forEach { (k, f) -> put(k, JSONObject().put("name", f.name).put("apps", JSONArray(f.apps))) }
         })
@@ -310,6 +310,7 @@ object Store {
             showWeather = o.optBoolean("showWeather", d.showWeather),
             weatherCity = o.optString("weatherCity", ""),
             weatherF = o.optBoolean("weatherF", d.weatherF),
+            badgeSize = f("badgeSize", d.badgeSize),
             favFolders = o.optJSONObject("favFolders")?.let { ff ->
                 ff.keys().asSequence().mapNotNull { k ->
                     val fo = ff.optJSONObject(k) ?: return@mapNotNull null

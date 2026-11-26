@@ -100,4 +100,5 @@ data class Settings(
     /** Mesto pre počasie ("" = poloha telefónu). */
     val weatherCity: String = "",
     val weatherF: Boolean = false,
+    val badgeSize: Float = 22f,
 )

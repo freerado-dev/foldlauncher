@@ -363,6 +363,7 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                         }
                     }
                     ChoiceRow("Odznaky", BadgeStyle.entries, s.badges, { it.label }) { v -> edit { it.copy(badges = v) } }
+                    SliderRow("Veľkosť odznaku", s.badgeSize, 10f..36f, 12, { "${it.roundToInt()} dp" }) { v -> edit { it.copy(badgeSize = v.roundToInt().toFloat()) } }
                     SwitchRow("Text notifikácie v obľúbených", checked = s.favNotifText) { v -> edit { it.copy(favNotifText = v) } }
                 }
             }
@@ -543,6 +544,7 @@ fun ClockSettingsPage(ui: LauncherUi, onClose: () -> Unit) {
             if (which == "clock") "Aplikácia pre čas a dátum" else "Aplikácia pre počasie",
             listOfNotNull((if (which == "clock") s.clockApp else s.weatherApp).ifEmpty { null }),
             onClose = { picking = null }, single = true,
+            extras = remember(which) { Apps.hiddenWeatherApps(ctx) },
         ) { keys ->
             val k = keys.firstOrNull() ?: ""
             edit { if (which == "clock") it.copy(clockApp = k) else it.copy(weatherApp = k) }
@@ -550,7 +552,7 @@ fun ClockSettingsPage(ui: LauncherUi, onClose: () -> Unit) {
         }
         return
     }
-    fun appName(k: String) = apps.firstOrNull { it.key == k }?.let { labelOf(it, s) }
+    fun appName(k: String) = apps.firstOrNull { it.key == k }?.let { labelOf(it, s) } ?: Apps.labelForKey(ctx, k)
 
     FullSheet("Hodiny a počasie", onClose = onClose) {
         LazyColumn(Modifier.fillMaxSize()) {

@@ -163,17 +163,16 @@ class LauncherUi(val activity: MainActivity) {
     }
 
     fun openClock() {
-        val a = Apps.find(Store.settings.value.clockApp)
-        if (a != null) Apps.launch(activity, a)
-        else runCatching {
+        val k = Store.settings.value.clockApp
+        if (k.isNotEmpty() && Apps.launchKey(activity, k)) return
+        runCatching {
             activity.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
     }
 
     fun openWeather() {
         val s = Store.settings.value
-        val a = Apps.find(s.weatherApp)
-        if (a != null) { Apps.launch(activity, a); return }
+        if (s.weatherApp.isNotEmpty() && Apps.launchKey(activity, s.weatherApp)) return
         val place = sk.fold.launcher.data.Weather.state.value?.place?.takeIf { it.isNotBlank() } ?: s.weatherCity
         val q = android.net.Uri.encode("počasie $place".trim())
         runCatching {

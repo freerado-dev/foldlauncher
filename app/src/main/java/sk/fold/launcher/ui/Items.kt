@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -127,21 +129,24 @@ fun ShortcutIconImage(item: HomeItem, size: Dp, s: Settings) {
     else Box(Modifier.size(size).clip(CircleShape).background(Color.White.copy(alpha = 0.3f)))
 }
 
+/** Odznak notifikácie – červený, v strede ikony, s bielym okrajom. */
 @Composable
 fun BadgeMark(count: Int, s: Settings, modifier: Modifier = Modifier) {
     if (count <= 0 || s.badges == BadgeStyle.NONE) return
-    val c = MaterialTheme.colorScheme.primary
+    val red = Color(0xFFFF3B30)
+    val d = s.badgeSize.dp
     if (s.badges == BadgeStyle.DOT) {
-        Box(modifier.size(11.dp).clip(CircleShape).background(Color.White).padding(1.5.dp).clip(CircleShape).background(c))
+        Box(modifier.size(d).clip(CircleShape).background(Color.White).padding(d * 0.14f).clip(CircleShape).background(red))
     } else {
-        Box(modifier.clip(CircleShape).background(c).padding(horizontal = 5.dp, vertical = 1.dp), contentAlignment = Alignment.Center) {
-            Text(if (count > 99) "99+" else "$count", color = MaterialTheme.colorScheme.onPrimary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Box(
+            modifier.heightIn(min = d).widthIn(min = d).clip(CircleShape).background(Color.White).padding(d * 0.1f)
+                .clip(CircleShape).background(red).padding(horizontal = d * 0.18f),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(if (count > 99) "99+" else "$count", color = Color.White, fontSize = (s.badgeSize * 0.5f).sp, fontWeight = FontWeight.Bold)
         }
     }
 }
-
-/** Spätné volania na ťahanie widgetu po dlhom podržaní. */
-class WidgetDrag(val start: () -> Unit, val move: (Offset) -> Unit, val end: (Boolean) -> Unit)
 
 @Composable
 fun ItemContent(ui: LauncherUi, item: HomeItem, s: Settings, wDp: Dp, hDp: Dp, drag: WidgetDrag? = null) {
@@ -186,7 +191,7 @@ private fun IconTile(label: String, s: Settings, wDp: Dp, hDp: Dp, badge: Int, i
     ) {
         Box {
             icon(iconSize)
-            BadgeMark(badge, s, Modifier.align(Alignment.TopEnd).offset(x = 2.dp, y = (-2).dp))
+            BadgeMark(badge, s, Modifier.align(Alignment.Center))
         }
         if (showLabel) {
             Spacer(Modifier.height(3.dp))
@@ -292,14 +297,18 @@ private fun WeatherChip(ui: LauncherUi, s: Settings, textSize: TextUnit, iconSiz
             Weather.refresh(ctx)
         }
     }
-    val now = w ?: return
+    val now = w
+    // Bez údajov ukážeme „–°“; ťuknutie vtedy otvorí nastavenia počasia (poloha / mesto).
     Row(
-        Modifier.clip(RoundedCornerShape(12.dp)).clickable { ui.openWeather() }.padding(horizontal = 4.dp, vertical = 2.dp),
+        Modifier.clip(RoundedCornerShape(12.dp))
+            .clickable { if (now == null) ui.sheet = Sheet.ClockSettings else ui.openWeather() }
+            .padding(horizontal = 4.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(weatherIcon(now.code, now.isDay), null, tint = Color.White, modifier = Modifier.size(iconSize))
+        Icon(if (now != null) weatherIcon(now.code, now.isDay) else Icons.Filled.Cloud, null,
+            tint = Color.White.copy(alpha = if (now != null) 1f else 0.6f), modifier = Modifier.size(iconSize))
         Spacer(Modifier.width(4.dp))
-        Text("${now.temp}°", style = labelStyle(s, textSize), fontFamily = LocalFont.current, maxLines = 1)
+        Text(if (now != null) "${now.temp}°" else "–°", style = labelStyle(s, textSize), fontFamily = LocalFont.current, maxLines = 1)
     }
 }
 
@@ -466,7 +475,7 @@ private fun FavoritesView(ui: LauncherUi, s: Settings, hDp: Dp) {
             ) {
                 Box {
                     if (a != null) AppIconImage(a, iconSize, s) else FavFolderIcon(iconSize, s)
-                    BadgeMark(count, s, Modifier.align(Alignment.TopEnd))
+                    BadgeMark(count, s, Modifier.align(Alignment.Center))
                 }
                 Spacer(Modifier.width(20.dp))
                 Column(Modifier.weight(1f)) {
