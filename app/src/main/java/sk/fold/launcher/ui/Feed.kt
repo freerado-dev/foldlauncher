@@ -14,7 +14,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.gestures.ScrollableState
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
+import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -57,43 +62,63 @@ import sk.fold.launcher.data.Settings
 import sk.fold.launcher.data.Store
 import sk.fold.launcher.data.Widgets
 
-/** Feed – stránka naľavo od plochy so zvislým zoznamom widgetov cez celú šírku. */
+/** Feed – stránka naľavo od plochy so zvislým zoznamom widgetov; na šírku v dvoch stĺpcoch. */
 @Composable
 fun FeedPage(ui: LauncherUi, s: Settings) {
     val feed by Store.feed.collectAsState()
-    val state = rememberLazyListState()
     val margin = if (ui.screen.isCover) 14.dp else 28.dp
-    LazyColumn(
-        state = state,
-        modifier = Modifier.fillMaxSize().padding(horizontal = margin),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item(key = "header") {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Feed", color = if (s.holo) Holo.Text else FEED_TEXT, fontSize = 30.sp, fontWeight = FontWeight.Medium, fontFamily = LocalFont.current, modifier = Modifier.weight(1f))
-                IconButton(onClick = { ui.sheet = Sheet.FeedWidgets }) {
-                    Box(Modifier.clip(CircleShape).background(if (s.holo) Holo.Glass else Color.White).padding(6.dp)) {
-                        Icon(Icons.Filled.Add, "Pridať widget", tint = if (s.holo) Holo.Cyan else FEED_TEXT)
-                    }
+    val header: @Composable () -> Unit = {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Feed", color = if (s.holo) Holo.Text else FEED_TEXT, fontSize = 30.sp, fontWeight = FontWeight.Medium,
+                fontFamily = LocalFont.current, modifier = Modifier.weight(1f))
+            IconButton(onClick = { ui.sheet = Sheet.FeedWidgets }) {
+                Box(Modifier.clip(CircleShape).background(if (s.holo) Holo.Glass else Color.White).padding(6.dp)) {
+                    Icon(Icons.Filled.Add, "Pridať widget", tint = if (s.holo) Holo.Cyan else FEED_TEXT)
                 }
             }
         }
-        if (feed.isEmpty()) item(key = "empty") {
-            Column(Modifier.fillMaxWidth().padding(top = 80.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Filled.Widgets, null, tint = FEED_TEXT.copy(alpha = 0.6f), modifier = Modifier.padding(8.dp))
-                Text(
-                    "Feed je prázdny.\nTlačidlom + pridáš widgety pod seba.\nPodržaním widgetu zmeníš jeho výšku alebo poradie.",
-                    color = FEED_TEXT.copy(alpha = 0.75f), fontSize = 15.sp, textAlign = TextAlign.Center,
-                )
-            }
+    }
+    val empty: @Composable () -> Unit = {
+        Column(Modifier.fillMaxWidth().padding(top = 80.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Filled.Widgets, null, tint = FEED_TEXT.copy(alpha = 0.6f), modifier = Modifier.padding(8.dp))
+            Text(
+                "Feed je prázdny.\nTlačidlom + pridáš widgety pod seba.\nPodržaním widgetu zmeníš jeho výšku alebo poradie.",
+                color = (if (s.holo) Holo.Text else FEED_TEXT).copy(alpha = 0.75f), fontSize = 15.sp, textAlign = TextAlign.Center,
+            )
         }
-        items(feed, key = { it.id }) { f -> FeedWidget(ui, f, state, feed, s) }
+    }
+    if (ui.screen.isLand) {
+        // Na šírku: dva stĺpce (widgety sa ukladajú pod seba do kratšieho stĺpca)
+        val state = rememberLazyStaggeredGridState()
+        LazyVerticalStaggeredGrid(
+            columns = StaggeredGridCells.Fixed(2),
+            state = state,
+            modifier = Modifier.fillMaxSize().padding(horizontal = margin),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalItemSpacing = 12.dp,
+        ) {
+            item(key = "header", span = StaggeredGridItemSpan.FullLine) { header() }
+            if (feed.isEmpty()) item(key = "empty", span = StaggeredGridItemSpan.FullLine) { empty() }
+            items(feed, key = { it.id }) { f -> FeedWidget(ui, f, state, feed, s) }
+        }
+    } else {
+        val state = rememberLazyListState()
+        LazyColumn(
+            state = state,
+            modifier = Modifier.fillMaxSize().padding(horizontal = margin),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item(key = "header") { header() }
+            if (feed.isEmpty()) item(key = "empty") { empty() }
+            items(feed, key = { it.id }) { f -> FeedWidget(ui, f, state, feed, s) }
+        }
     }
 }
 
 @Composable
-private fun FeedWidget(ui: LauncherUi, f: FeedItem, list: LazyListState, all: List<FeedItem>, s: Settings) {
+private fun FeedWidget(ui: LauncherUi, f: FeedItem, list: ScrollableState, all: List<FeedItem>, s: Settings) {
     val ctx = LocalContext.current
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
