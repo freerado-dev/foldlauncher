@@ -295,7 +295,7 @@ object Store {
         put("animSpeed", s.animSpeed.name); put("drawerSort", s.drawerSort.name)
         put("showRecent", s.showRecent); put("showWork", s.showWork)
         put("favIcon3", s.favIconSize.toDouble()); put("favFolderColor", s.favFolderColor)
-        put("clockApp", s.clockApp); put("weatherApp", s.weatherApp); put("showWeather", s.showWeather); put("showEvents", s.showEvents); put("folderSheet", s.folderSheet); put("feedEnabled", s.feedEnabled); put("launcherTheme", s.launcherTheme.name); put("ringStyle", s.ringStyle.name); put("ringColor", s.ringColor); put("popupColor", s.popupColor); put("popupAlpha", s.popupAlpha.toDouble())
+        put("clockApp", s.clockApp); put("weatherApp", s.weatherApp); put("showWeather", s.showWeather); put("showEvents", s.showEvents); put("folderSheet", s.folderSheet); put("feedEnabled", s.feedEnabled); put("launcherTheme", s.launcherTheme.name); put("ringStyle", s.ringStyle.name); put("ringColor", s.ringColor); put("wallStyle", s.wallStyle.name); put("wallColor", s.wallColor); put("popupColor", s.popupColor); put("popupAlpha", s.popupAlpha.toDouble())
         put("weatherCity", s.weatherCity); put("weatherF", s.weatherF); put("badgeSize", s.badgeSize.toDouble()); put("assistantKey", s.assistantKey)
         put("floatAssist", s.floatAssist); put("floatSize", s.floatSize.toDouble())
         put("floatCoverX", s.floatCoverX.toDouble()); put("floatCoverY", s.floatCoverY.toDouble())
@@ -368,6 +368,8 @@ object Store {
             launcherTheme = en(o.str("launcherTheme"), d.launcherTheme),
             ringStyle = en(o.str("ringStyle"), d.ringStyle),
             ringColor = o.optLong("ringColor", d.ringColor),
+            wallStyle = en(o.str("wallStyle"), d.wallStyle),
+            wallColor = o.optLong("wallColor", d.wallColor),
             popupColor = o.optLong("popupColor", d.popupColor),
             popupAlpha = f("popupAlpha", d.popupAlpha),
             weatherCity = o.optString("weatherCity", ""),

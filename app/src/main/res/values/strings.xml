@@ -1,4 +1,5 @@
 <resources>
     <string name="lock_desc">Fold Launcher používa túto službu len na zamknutie obrazovky dvojitým ťuknutím a na otvorenie notifikácií gestom. Nečíta obsah obrazovky.</string>
     <string name="admin_desc">Umožní launcheru zamknúť obrazovku dvojitým ťuknutím. Nič iné nerobí.</string>
+    <string name="wall_desc">Animovaný holografický kruh – Fold Launcher</string>
 </resources>

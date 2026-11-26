@@ -110,6 +110,9 @@ data class Settings(
     val launcherTheme: LauncherTheme = LauncherTheme.STANDARD,
     val ringStyle: RingStyle = RingStyle.CLASSIC,
     val ringColor: Long = 0xFF3ED6FF,
+    /** Animovaná tapeta – štýl kruhu a farba (predvolene oranžová). */
+    val wallStyle: RingStyle = RingStyle.CLASSIC,
+    val wallColor: Long = 0xFFFF7A1A,
     /** Farba pozadia okien a panelov (priečinky, Váš program) – RGB a priehľadnosť. */
     val popupColor: Long = 0xFF1C1C20,
     val popupAlpha: Float = 0.95f,

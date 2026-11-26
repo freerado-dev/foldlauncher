@@ -322,6 +322,7 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                 Group {
                     ChoiceRow("Téma", LauncherTheme.entries, s.launcherTheme, { it.label }) { v -> edit { it.copy(launcherTheme = v) } }
                     RingSettings(s)
+                    WallpaperSettings(s)
                     Text(
                         if (s.holo) "Hologram: tmavomodré sklo, tyrkysové žiarenie a HUD panely. Na plochu si môžeš pridať animovaný Holo kruh (Pridať widget)."
                         else "Štandard: pôvodný vzhľad launchera.",
@@ -526,6 +527,43 @@ private fun RingSettings(s: Settings) {
         val c = v.removePrefix("#").toLongOrNull(16)
         if (c != null && v.removePrefix("#").length == 6) edit { it.copy(ringColor = 0xFF000000 or c) }
         hex = false
+    }
+}
+
+private val WALL_COLORS: List<Long> = listOf(
+    0xFFFF7A1A, 0xFFFF9F0A, 0xFFFF453A, 0xFFFFD60A, 0xFF3ED6FF, 0xFFBF5AF2, 0xFF30D158,
+)
+
+/** Animovaná tapeta – štýl, farba a nastavenie ako tapety systému. */
+@Composable
+private fun WallpaperSettings(s: Settings) {
+    val ctx = LocalContext.current
+    Text("Animovaná tapeta", Modifier.padding(start = 18.dp, end = 18.dp, top = 12.dp), fontWeight = FontWeight.SemiBold)
+    Text("Holo kruh na tmavom pozadí s mriežkou a časticami, na výšku aj na šírku. Beží aj na zamknutej obrazovke.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 18.dp))
+    ChoiceRow("Štýl kruhu na tapete", sk.fold.launcher.data.RingStyle.entries, s.wallStyle, { it.label }) { v -> edit { it.copy(wallStyle = v) } }
+    FlowRow(Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
+        WALL_COLORS.forEach { c ->
+            Box(
+                Modifier.padding(4.dp).size(34.dp).clip(CircleShape).background(Color(c))
+                    .border(if (c == s.wallColor) 3.dp else 1.dp,
+                        if (c == s.wallColor) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline, CircleShape)
+                    .clickable { edit { it.copy(wallColor = c) } },
+            )
+        }
+    }
+    ClickRow("Nastaviť ako tapetu", "Otvorí náhľad – potom zvoľ plochu, zamknutú obrazovku alebo obe") {
+        val cn = android.content.ComponentName(ctx, sk.fold.launcher.wall.HoloWallpaper::class.java)
+        val ok = runCatching {
+            ctx.startActivity(android.content.Intent(android.app.WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER)
+                .putExtra(android.app.WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT, cn)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        }.isSuccess
+        if (!ok) runCatching {
+            ctx.startActivity(android.content.Intent(android.app.WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
     }
 }
 
