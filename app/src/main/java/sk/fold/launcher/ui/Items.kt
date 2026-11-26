@@ -288,6 +288,7 @@ private fun WidgetBox(ui: LauncherUi, item: HomeItem, wDp: Dp, hDp: Dp, drag: Wi
             v.onDragStart = { drag?.start?.invoke() }
             v.onDrag = { dx, dy -> drag?.move?.invoke(Offset(dx, dy)) }
             v.onDragEnd = { ok -> drag?.end?.invoke(ok) }
+            v.onPageSwipe = { dir -> if (!ui.editMode) ui.swipePage?.invoke(dir) }
             v.onSwipe = { dir ->
                 if (!ui.editMode) {
                     val st = Store.settings.value

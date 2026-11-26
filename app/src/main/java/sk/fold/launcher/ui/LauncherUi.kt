@@ -36,6 +36,7 @@ sealed interface Sheet {
     data object ClockSettings : Sheet
     data object AssistantSettings : Sheet
     data object Agenda : Sheet
+    data object FeedWidgets : Sheet
     data class FavFolder(val id: String) : Sheet
     data class FavFolderApps(val id: String) : Sheet
     data class RenameFavFolder(val id: String) : Sheet
@@ -210,7 +211,17 @@ class LauncherUi(val activity: MainActivity) {
         if (type == ItemType.FOLDER) sheet = Sheet.FolderApps(item.id)
     }
 
+    /** Listovanie stránok plochy (nastaví HomeScreen) – volá ho aj widget pri vodorovnom potiahnutí. */
+    var swipePage: ((Int) -> Unit)? = null
+
+    fun addFeedWidget(info: android.appwidget.AppWidgetProviderInfo) {
+        sheet = null
+        activity.widgetToFeed = true
+        activity.startAddWidget(info)
+    }
+
     fun addWidget(info: android.appwidget.AppWidgetProviderInfo) {
+        activity.widgetToFeed = false
         Store.lastPage = page
         sheet = null
         activity.startAddWidget(info)

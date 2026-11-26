@@ -138,7 +138,7 @@ fun FullSheet(title: String, onClose: () -> Unit, actions: @Composable () -> Uni
 private class WidgetGroup(val pkg: String, val label: String, val items: List<AppWidgetProviderInfo>)
 
 @Composable
-fun WidgetPicker(ui: LauncherUi, screen: Screen) {
+fun WidgetPicker(ui: LauncherUi, screen: Screen, feed: Boolean = false) {
     val ctx = LocalContext.current
     val groups by produceState<List<WidgetGroup>?>(null) {
         value = withContext(Dispatchers.IO) {
@@ -149,10 +149,10 @@ fun WidgetPicker(ui: LauncherUi, screen: Screen) {
             }.sortedWith(compareBy(Collator.getInstance()) { it.label })
         }
     }
-    FullSheet("Pridať na plochu", onClose = { ui.sheet = null }) {
+    FullSheet(if (feed) "Pridať widget do feedu" else "Pridať na plochu", onClose = { ui.sheet = null }) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
-            item { SectionTitle("Fold Launcher") }
-            item {
+            if (!feed) item { SectionTitle("Fold Launcher") }
+            if (!feed) item {
                 LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     item { ElementCard("Hodiny", "Čas a dátum", Icons.Filled.Schedule) { ui.sheet = null; ui.addElement(ItemType.CLOCK) } }
                     item { ElementCard("Obľúbené", "Zoznam ako Niagara", Icons.Filled.Star) { ui.sheet = null; ui.addElement(ItemType.FAVORITES) } }
@@ -168,7 +168,7 @@ fun WidgetPicker(ui: LauncherUi, screen: Screen) {
                 SectionTitle(grp.label)
                 LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(grp.items, key = { it.provider.flattenToString() + it.profile.hashCode() }) { info ->
-                        WidgetCard(info, screen) { ui.addWidget(info) }
+                        WidgetCard(info, screen) { if (feed) ui.addFeedWidget(info) else ui.addWidget(info) }
                     }
                 }
             }
@@ -723,6 +723,7 @@ fun SheetHost(ui: LauncherUi, screen: Screen, s: Settings) {
     when (val sh = ui.sheet) {
         null -> {}
         Sheet.Widgets -> WidgetPicker(ui, screen)
+        Sheet.FeedWidgets -> WidgetPicker(ui, screen, feed = true)
         Sheet.AddApps -> AppPicker("Pridať aplikácie na plochu", emptyList(), onClose = { ui.sheet = null }) { keys ->
             ui.sheet = null
             keys.forEach { ui.addApp(it) }

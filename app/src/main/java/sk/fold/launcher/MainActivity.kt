@@ -29,6 +29,8 @@ import sk.fold.launcher.ui.LauncherUi
 class MainActivity : ComponentActivity() {
     var ui: LauncherUi? = null
     private var pendingWidget: Pair<Int, AppWidgetProviderInfo>? = null
+    /** true = práve pridávaný widget ide do feedu, nie na plochu. */
+    var widgetToFeed = false
 
     private val bindLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
         val p = pendingWidget ?: return@registerForActivityResult
@@ -162,6 +164,11 @@ class MainActivity : ComponentActivity() {
 
     private fun place(id: Int, info: AppWidgetProviderInfo) {
         pendingWidget = null
+        if (widgetToFeed) {
+            widgetToFeed = false
+            Store.addFeed(id, (info.minHeight / resources.displayMetrics.density + 24f).coerceAtLeast(140f))
+            return
+        }
         val screen = ui?.screen ?: Store.lastScreen
         val (w, h) = Widgets.span(screen, info, resources.displayMetrics.density)
         val page = Store.add(screen, HomeItem(Store.newId(), ItemType.WIDGET, Store.lastPage, 0, 0, w, h, widgetId = id))

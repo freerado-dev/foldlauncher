@@ -12,6 +12,7 @@ import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.VelocityTracker
 import android.view.ViewConfiguration
 import kotlin.math.abs
 
@@ -70,6 +71,14 @@ class LauncherWidgetView(ctx: Context) : AppWidgetHostView(ctx) {
     var onDragEnd: ((Boolean) -> Unit)? = null
     /** -1 = potiahnutie nahor, +1 = nadol. */
     var onSwipe: ((Int) -> Unit)? = null
+    /** Vo feede: zvislé ťahanie posúva zoznam (posun v px) a pustenie odovzdá rýchlosť (px/s). */
+    var onScrollDelta: ((Float) -> Unit)? = null
+    var onScrollEnd: ((Float) -> Unit)? = null
+    /** Vodorovné potiahnutie → listovanie stránok (+1 = ďalšia, -1 = predchádzajúca). */
+    var onPageSwipe: ((Int) -> Unit)? = null
+    private var scrolling = false
+    private var lastScrollY = 0f
+    private var vt: VelocityTracker? = null
 
     private var longPressed = false
     private var dragging = false
@@ -90,6 +99,25 @@ class LauncherWidgetView(ctx: Context) : AppWidgetHostView(ctx) {
         }
     }
 
+    private fun canScrollH(v: View, x: Float, y: Float, dir: Int): Boolean {
+        if (v !== this && v.canScrollHorizontally(dir)) return true
+        if (v is ViewGroup) for (i in v.childCount - 1 downTo 0) {
+            val c = v.getChildAt(i)
+            if (c.visibility != View.VISIBLE) continue
+            val cx = x + v.scrollX - c.left
+            val cy = y + v.scrollY - c.top
+            if (cx >= 0 && cy >= 0 && cx < c.width && cy < c.height && canScrollH(c, cx, cy, dir)) return true
+        }
+        return false
+    }
+
+    private fun addVelocity(ev: MotionEvent) {
+        val e = MotionEvent.obtain(ev)
+        e.setLocation(ev.rawX, ev.rawY)
+        vt?.addMovement(e)
+        e.recycle()
+    }
+
     private fun canScroll(v: View, x: Float, y: Float, dir: Int): Boolean {
         if (v !== this && v.canScrollVertically(dir)) return true
         if (v is ViewGroup) for (i in v.childCount - 1 downTo 0) {
@@ -108,20 +136,34 @@ class LauncherWidgetView(ctx: Context) : AppWidgetHostView(ctx) {
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 downX = ev.x; downY = ev.y
-                longPressed = false; dragging = false; swiped = false
+                longPressed = false; dragging = false; swiped = false; scrolling = false
+                vt?.recycle(); vt = VelocityTracker.obtain(); addVelocity(ev)
                 removeCallbacks(lp)
                 postDelayed(lp, ViewConfiguration.getLongPressTimeout().toLong())
             }
             MotionEvent.ACTION_MOVE -> if (!longPressed && !swiped) {
+                addVelocity(ev)
                 val dx = ev.x - downX
                 val dy = ev.y - downY
                 if (abs(dx) > slop || abs(dy) > slop) removeCallbacks(lp)
+                if (onPageSwipe != null && abs(dx) > slop * 2 && abs(dx) > abs(dy) * 1.5f) {
+                    val dir = if (dx < 0) 1 else -1
+                    if (!canScrollH(this, downX, downY, dir)) {
+                        swiped = true
+                        onPageSwipe?.invoke(dir)
+                        return true
+                    }
+                }
                 if (abs(dy) > slop * 2 && abs(dy) > abs(dx) * 1.5f) {
                     val dir = if (dy > 0) 1 else -1
                     // obsah, ktorý sa dá posúvať v smere prsta, má prednosť
                     if (!canScroll(this, downX, downY, -dir)) {
                         swiped = true
-                        onSwipe?.invoke(dir)
+                        if (onScrollDelta != null) {
+                            scrolling = true
+                            lastScrollY = ev.rawY
+                            onScrollDelta?.invoke(dy)
+                        } else onSwipe?.invoke(dir)
                         return true
                     }
                 }
@@ -162,6 +204,18 @@ class LauncherWidgetView(ctx: Context) : AppWidgetHostView(ctx) {
     override fun onTouchEvent(ev: MotionEvent): Boolean {
         if (longPressed) { handleLongPressed(ev); return true }
         if (swiped) {
+            if (scrolling) {
+                addVelocity(ev)
+                when (ev.actionMasked) {
+                    MotionEvent.ACTION_MOVE -> { onScrollDelta?.invoke(ev.rawY - lastScrollY); lastScrollY = ev.rawY }
+                    MotionEvent.ACTION_UP -> {
+                        vt?.computeCurrentVelocity(1000)
+                        onScrollEnd?.invoke(vt?.yVelocity ?: 0f)
+                        scrolling = false
+                    }
+                    MotionEvent.ACTION_CANCEL -> { onScrollEnd?.invoke(0f); scrolling = false }
+                }
+            }
             if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) swiped = false
             return true
         }

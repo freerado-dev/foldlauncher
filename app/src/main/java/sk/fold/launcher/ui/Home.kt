@@ -59,7 +59,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -97,17 +100,27 @@ import kotlin.math.roundToInt
 
 @Composable
 fun HomeScreen(ui: LauncherUi, screen: Screen, layout: ScreenLayout, s: Settings) {
-    val pager = rememberPagerState(pageCount = { layout.pages })
+    // Feed je stránka 0 naľavo; stránky plochy sú posunuté o „off“.
+    val off = if (s.feedEnabled) 1 else 0
+    val pager = rememberPagerState(initialPage = off, pageCount = { layout.pages + off })
     var dragging by remember { mutableStateOf(false) }
-
-    LaunchedEffect(pager.currentPage) {
-        ui.page = pager.currentPage
-        Store.lastPage = pager.currentPage
+    val scope = rememberCoroutineScope()
+    SideEffect {
+        ui.swipePage = { dir ->
+            val t = (pager.currentPage + dir).coerceIn(0, pager.pageCount - 1)
+            scope.launch { pager.animateScrollToPage(t) }
+        }
     }
-    LaunchedEffect(ui.homeSignal) { if (ui.homeSignal > 0) pager.animateScrollToPage(0) }
+
+    LaunchedEffect(pager.currentPage, off) {
+        val hp = (pager.currentPage - off).coerceAtLeast(0)
+        ui.page = hp
+        Store.lastPage = hp
+    }
+    LaunchedEffect(ui.homeSignal) { if (ui.homeSignal > 0) pager.animateScrollToPage(off) }
     LaunchedEffect(ui.requestPage, layout.pages) {
         ui.requestPage?.let { p ->
-            if (p < layout.pages) { pager.animateScrollToPage(p); ui.requestPage = null }
+            if (p < layout.pages) { pager.animateScrollToPage(p + off); ui.requestPage = null }
         }
     }
 
@@ -151,7 +164,7 @@ fun HomeScreen(ui: LauncherUi, screen: Screen, layout: ScreenLayout, s: Settings
         LaunchedEffect(scale) { ui.homeScale = scale }
         HorizontalPager(
             state = pager,
-            modifier = Modifier.fillMaxSize().padding(bottom = if (layout.pages > 1 && s.showPageDots) 16.dp else 0.dp)
+            modifier = Modifier.fillMaxSize().padding(bottom = if (layout.pages + off > 1 && s.showPageDots) 16.dp else 0.dp)
                 .graphicsLayer {
                     scaleX = scale; scaleY = scale
                     transformOrigin = TransformOrigin(0.5f, 0.42f)
@@ -174,7 +187,8 @@ fun HomeScreen(ui: LauncherUi, screen: Screen, layout: ScreenLayout, s: Settings
                     }
                 }
             }) {
-                HomePage(ui, screen, layout, page, s) { dragging = it }
+                if (page < off) FeedPage(ui, s)
+                else HomePage(ui, screen, layout, page - off, s) { dragging = it }
             }
         }
         if (s.floatAssist) {
@@ -183,12 +197,13 @@ fun HomeScreen(ui: LauncherUi, screen: Screen, layout: ScreenLayout, s: Settings
             val hArea = constraints.maxHeight.toFloat()
             // Len na jednej stránke: tlačidlo sa posúva spolu so stránkou pri listovaní.
             Box(Modifier.fillMaxSize().graphicsLayer {
-                if (!s.floatAllPages) translationX = (fp - pager.currentPage - pager.currentPageOffsetFraction) * w
+                if (!s.floatAllPages) translationX = (fp + off - pager.currentPage - pager.currentPageOffsetFraction) * w
+                else if (off > 0) alpha = (pager.currentPage + pager.currentPageOffsetFraction).coerceIn(0f, 1f)
             }) {
                 FloatingAssistant(ui, screen, s, w, hArea)
             }
         }
-        if (layout.pages > 1 && s.showPageDots) Box(Modifier.align(Alignment.BottomCenter)) { PageDots(layout.pages, pager.currentPage) }
+        if (layout.pages + off > 1 && s.showPageDots) Box(Modifier.align(Alignment.BottomCenter)) { PageDots(layout.pages + off, pager.currentPage) }
         if (ui.editMode) {
             Box(Modifier.align(Alignment.TopCenter)) { SelectionBar(ui, screen, layout, s) }
             Box(Modifier.align(Alignment.BottomCenter)) { EditToolbar(ui, layout) }

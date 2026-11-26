@@ -269,6 +269,7 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                     }
                     SwitchRow("Zobraziť mriežku pri úpravách", checked = s.showGrid) { v -> edit { it.copy(showGrid = v) } }
                     SwitchRow("Zamknúť rozloženie", "Zabráni náhodnému presunu", s.lockLayout) { v -> edit { it.copy(lockLayout = v) } }
+                    SwitchRow("Feed stránka naľavo", "Zvislý zoznam veľkých widgetov pred hlavnou plochou", s.feedEnabled) { v -> edit { it.copy(feedEnabled = v) } }
                     PopupColorRow(s)
                     ChoiceRow("Otváranie priečinkov", listOf(false, true), s.folderSheet, { if (it) "Panel zdola" else "Okno" }) { v ->
                         edit { it.copy(folderSheet = v) }

@@ -25,6 +25,21 @@ object Store {
 
     fun newId(): Long = ids.incrementAndGet()
 
+    // ---------- feed ----------
+
+    val feed = MutableStateFlow<List<FeedItem>>(emptyList())
+
+    @Synchronized
+    fun editFeed(f: (List<FeedItem>) -> List<FeedItem>) {
+        val n = f(feed.value)
+        feed.value = n
+        sp.edit().putString("feed", JSONArray().apply {
+            n.forEach { put(JSONObject().put("id", it.id).put("widgetId", it.widgetId).put("height", it.height.toDouble())) }
+        }.toString()).apply()
+    }
+
+    fun addFeed(widgetId: Int, heightDp: Float) = editFeed { it + FeedItem(newId(), widgetId, heightDp.coerceIn(80f, 900f)) }
+
     /** Počet spustení a naposledy spustené aplikácie (pre triedenie a riadok „Naposledy“). */
     val usage = MutableStateFlow<Map<String, Int>>(emptyMap())
     val recent = MutableStateFlow<List<String>>(emptyList())
@@ -43,6 +58,15 @@ object Store {
         sp = ctx.getSharedPreferences("launcher", Context.MODE_PRIVATE)
         sp.getString("settings", null)?.let { s ->
             runCatching { settings.value = settingsFromJson(JSONObject(s)) }
+        }
+        runCatching {
+            sp.getString("feed", null)?.let { j ->
+                val a = JSONArray(j)
+                feed.value = (0 until a.length()).map { i ->
+                    val o = a.getJSONObject(i)
+                    FeedItem(o.getLong("id"), o.getInt("widgetId"), o.optDouble("height", 200.0).toFloat())
+                }
+            }
         }
         runCatching {
             sp.getString("usage", null)?.let { j -> val o = JSONObject(j); usage.value = o.keys().asSequence().associateWith { o.getInt(it) } }
@@ -93,7 +117,8 @@ object Store {
 
     /** Widget sa smie uvoľniť len vtedy, keď ho už nepoužíva žiadne iné rozloženie. */
     fun widgetUsedElsewhere(widgetId: Int, exceptItem: Long): Boolean =
-        Screen.entries.any { sc -> layout(sc).value.items.any { it.type == ItemType.WIDGET && it.widgetId == widgetId && it.id != exceptItem } }
+        Screen.entries.any { sc -> layout(sc).value.items.any { it.type == ItemType.WIDGET && it.widgetId == widgetId && it.id != exceptItem } } ||
+            feed.value.any { it.widgetId == widgetId && it.id != exceptItem }
 
     // ---------- umiestňovanie ----------
 
@@ -269,7 +294,7 @@ object Store {
         put("animSpeed", s.animSpeed.name); put("drawerSort", s.drawerSort.name)
         put("showRecent", s.showRecent); put("showWork", s.showWork)
         put("favIcon3", s.favIconSize.toDouble()); put("favFolderColor", s.favFolderColor)
-        put("clockApp", s.clockApp); put("weatherApp", s.weatherApp); put("showWeather", s.showWeather); put("showEvents", s.showEvents); put("folderSheet", s.folderSheet); put("popupColor", s.popupColor); put("popupAlpha", s.popupAlpha.toDouble())
+        put("clockApp", s.clockApp); put("weatherApp", s.weatherApp); put("showWeather", s.showWeather); put("showEvents", s.showEvents); put("folderSheet", s.folderSheet); put("feedEnabled", s.feedEnabled); put("popupColor", s.popupColor); put("popupAlpha", s.popupAlpha.toDouble())
         put("weatherCity", s.weatherCity); put("weatherF", s.weatherF); put("badgeSize", s.badgeSize.toDouble()); put("assistantKey", s.assistantKey)
         put("floatAssist", s.floatAssist); put("floatSize", s.floatSize.toDouble())
         put("floatCoverX", s.floatCoverX.toDouble()); put("floatCoverY", s.floatCoverY.toDouble())
@@ -334,6 +359,7 @@ object Store {
             showWeather = o.optBoolean("showWeather", d.showWeather),
             showEvents = o.optBoolean("showEvents", d.showEvents),
             folderSheet = o.optBoolean("folderSheet", d.folderSheet),
+            feedEnabled = o.optBoolean("feedEnabled", d.feedEnabled),
             popupColor = o.optLong("popupColor", d.popupColor),
             popupAlpha = f("popupAlpha", d.popupAlpha),
             weatherCity = o.optString("weatherCity", ""),
