@@ -161,10 +161,10 @@ fun HomeScreen(ui: LauncherUi, screen: Screen, layout: ScreenLayout, s: Settings
         Box(
             Modifier.fillMaxSize().graphicsLayer {
                 alpha = (1f - (pager.currentPage + pager.currentPageOffsetFraction)).coerceIn(0f, 1f)
-            }.background(FEED_BG)
+            }.background(if (s.holo) Color(0xE6050B16) else FEED_BG)
         )
     }
-    val onFeed = off > 0 && pager.currentPage == 0 && !pager.isScrollInProgress
+    val onFeed = off > 0 && !s.holo && pager.currentPage == 0 && !pager.isScrollInProgress
     SideEffect { ui.feedVisible = onFeed }
 
     // V režime úprav sa stránka zmenší (mriežka ostane rovnaká) a nad/pod ňou sú lišty.
@@ -377,7 +377,7 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
         ) {
             if (ui.editMode && s.showGrid) {
                 Canvas(Modifier.fillMaxSize()) {
-                    val line = Color.White.copy(alpha = 0.16f)
+                    val line = if (s.holo) Holo.Cyan.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.16f)
                     for (i in 0..layout.cols) drawLine(line, Offset(i * cw, 0f), Offset(i * cw, gridH), 1f)
                     for (j in 0..layout.rows) drawLine(line, Offset(0f, j * ch), Offset(pageW, j * ch), 1f)
                 }
@@ -748,6 +748,7 @@ fun itemTitle(i: HomeItem, s: Settings): String = when (i.type) {
     ItemType.FAVORITES -> "Obľúbené"
     ItemType.SEARCH -> "Vyhľadávanie"
     ItemType.ASSISTANT -> "Asistent"
+    ItemType.HOLO_RING -> "Holo kruh"
 }
 
 @Composable

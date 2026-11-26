@@ -166,7 +166,7 @@ class LauncherUi(val activity: MainActivity) {
             ItemType.FOLDER -> sheet = Sheet.Folder(item.id)
             ItemType.CLOCK -> openClock()
             ItemType.SEARCH -> openDrawer(search = true)
-            ItemType.ASSISTANT -> openAssistant()
+            ItemType.ASSISTANT, ItemType.HOLO_RING -> openAssistant()
             else -> {}
         }
     }

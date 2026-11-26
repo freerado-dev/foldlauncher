@@ -30,7 +30,7 @@ object Grid {
 /** Widget vo feede (stránka naľavo od plochy) – cez celú šírku, s vlastnou výškou. */
 data class FeedItem(val id: Long, val widgetId: Int, val height: Float)
 
-enum class ItemType { APP, SHORTCUT, WIDGET, FOLDER, CLOCK, FAVORITES, SEARCH, ASSISTANT }
+enum class ItemType { APP, SHORTCUT, WIDGET, FOLDER, CLOCK, FAVORITES, SEARCH, ASSISTANT, HOLO_RING }
 
 /** COVER = vonkajší displej (zložený Fold), INNER = vnútorný (rozložený); _LAND = na šírku (vlastné rozloženie). */
 enum class Screen {

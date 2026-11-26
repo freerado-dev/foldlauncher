@@ -3,6 +3,7 @@ package sk.fold.launcher.ui
 import android.view.ViewGroup
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +31,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Dehaze
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Thunderstorm
 import androidx.compose.material.icons.filled.WaterDrop
@@ -103,9 +105,14 @@ import java.util.Date
 import java.util.Locale
 
 fun labelStyle(s: Settings, size: TextUnit, color: Color = Color.White) = TextStyle(
-    color = color,
+    // V téme Hologram svieti text tyrkysovo
+    color = if (s.holo && color == Color.White) Holo.Text else color,
     fontSize = size,
-    shadow = if (s.labelShadow) Shadow(Color.Black.copy(alpha = 0.55f), Offset(0f, 1.5f), 5f) else null,
+    shadow = when {
+        s.holo -> Shadow(Holo.Cyan.copy(alpha = 0.75f), Offset.Zero, 12f)
+        s.labelShadow -> Shadow(Color.Black.copy(alpha = 0.55f), Offset(0f, 1.5f), 5f)
+        else -> null
+    },
 )
 
 @Composable
@@ -179,11 +186,12 @@ fun ItemContent(ui: LauncherUi, item: HomeItem, s: Settings, wDp: Dp, hDp: Dp, d
             }
             IconTile(item.label ?: "Priečinok", s, wDp, hDp, count) { sz -> FolderIcon(item, sz, s) }
         }
-        ItemType.WIDGET -> WidgetBox(ui, item, wDp, hDp, drag)
+        ItemType.WIDGET -> WidgetBox(ui, item, s, wDp, hDp, drag)
         ItemType.CLOCK -> ClockView(ui, s, wDp, hDp)
         ItemType.FAVORITES -> FavoritesView(ui, s, hDp)
         ItemType.SEARCH -> {}
         // label == "" znamená „bez popisu“ (len ikona)
+        ItemType.HOLO_RING -> HoloRing(Modifier.fillMaxSize().padding(4.dp))
         ItemType.ASSISTANT -> IconTile(item.label ?: "Asistent", s, wDp, hDp, 0, noLabel = item.label == "") { sz -> AssistantIcon(sz) }
     }
 }
@@ -200,8 +208,16 @@ private fun IconTile(label: String, s: Settings, wDp: Dp, hDp: Dp, badge: Int, n
         Modifier.fillMaxSize().padding(vertical = pad),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
-        Box {
-            icon(iconSize)
+        Box(contentAlignment = Alignment.Center) {
+            if (s.holo) {
+                // sklenená dlaždica s tyrkysovým okrajom
+                Box(
+                    Modifier.size(iconSize).clip(RoundedCornerShape(iconSize * 0.26f))
+                        .background(Brush.verticalGradient(listOf(Color(0x6618385E), Color(0x440A1A30))))
+                        .border(1.dp, Holo.Cyan.copy(alpha = 0.7f), RoundedCornerShape(iconSize * 0.26f)),
+                    contentAlignment = Alignment.Center,
+                ) { icon(iconSize * 0.74f) }
+            } else icon(iconSize)
             BadgeMark(badge, s, Modifier.align(Alignment.Center))
         }
         if (showLabel) {
@@ -260,7 +276,7 @@ fun FolderIconOf(keys: List<String>, size: Dp, s: Settings) {
 }
 
 @Composable
-private fun WidgetBox(ui: LauncherUi, item: HomeItem, wDp: Dp, hDp: Dp, drag: WidgetDrag?) {
+private fun WidgetBox(ui: LauncherUi, item: HomeItem, s: Settings, wDp: Dp, hDp: Dp, drag: WidgetDrag?) {
     val ctx = LocalContext.current
     val info = remember(item.widgetId) { runCatching { Widgets.manager.getAppWidgetInfo(item.widgetId) }.getOrNull() }
     if (info == null) {
@@ -282,7 +298,7 @@ private fun WidgetBox(ui: LauncherUi, item: HomeItem, wDp: Dp, hDp: Dp, drag: Wi
     val onLong by rememberUpdatedState { ui.startEdit(item.id) }
     AndroidView(
         factory = { (view.parent as? ViewGroup)?.removeView(view); view },
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().holoFrame(s),
         update = { v ->
             v.onLongPress = { onLong() }
             v.onDragStart = { drag?.start?.invoke() }
@@ -333,7 +349,7 @@ private fun WeatherChip(ui: LauncherUi, s: Settings, textSize: TextUnit, iconSiz
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(if (now != null) weatherIcon(now.code, now.isDay) else Icons.Filled.Cloud, null,
-            tint = Color.White.copy(alpha = if (now != null) 1f else 0.6f), modifier = Modifier.size(iconSize))
+            tint = (if (s.holo) Holo.Cyan else Color.White).copy(alpha = if (now != null) 1f else 0.6f), modifier = Modifier.size(iconSize))
         Spacer(Modifier.width(4.dp))
         Text(if (now != null) "${now.temp}°" else "–°", style = labelStyle(s, textSize), fontFamily = LocalFont.current, maxLines = 1)
     }
@@ -364,10 +380,13 @@ private fun EventLine(ui: LauncherUi, s: Settings, textSize: TextUnit, refreshKe
     if (gap > 0.dp) Spacer(Modifier.height(gap))
     val rel = Agenda.relative(e.day)
     val time = if (!e.allDay && rel == "dnes") " · " + SimpleDateFormat("H:mm", Locale.getDefault()).format(Date(e.begin)) else ""
-    Text(
-        "${e.title} · $rel$time", style = labelStyle(s, textSize), fontFamily = ff, maxLines = 1, overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { ui.sheet = Sheet.Agenda },
-    )
+    Row(Modifier.clip(RoundedCornerShape(8.dp)).clickable { ui.sheet = Sheet.Agenda }, verticalAlignment = Alignment.CenterVertically) {
+        if (s.holo) {
+            Icon(Icons.Filled.Event, null, tint = Holo.Cyan, modifier = Modifier.size(with(LocalDensity.current) { textSize.toDp() } * 1.1f))
+            Spacer(Modifier.width(6.dp))
+        }
+        Text("${e.title} · $rel$time", style = labelStyle(s, textSize), fontFamily = ff, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
 }
 
 @Composable
@@ -389,7 +408,7 @@ private fun ClockView(ui: LauncherUi, s: Settings, wDp: Dp, hDp: Dp) {
     val clockClick = Modifier.clip(RoundedCornerShape(12.dp)).clickable { ui.openClock() }
     val lines = (if (s.clockDate) 1 else 0) + (if (s.showEvents) 1 else 0)
     when (s.clockStyle) {
-        ClockStyle.LARGE -> Box(Modifier.fillMaxSize().padding(horizontal = 6.dp), contentAlignment = Alignment.CenterStart) {
+        ClockStyle.LARGE -> Box(Modifier.fillMaxSize().holoPanel(s, 4.dp).padding(horizontal = 6.dp), contentAlignment = Alignment.CenterStart) {
             Column {
                 val tSize = minOf(hDp * (0.82f - 0.14f * lines), wDp * 0.3f)
                 val small = minOf(hDp * 0.13f, 22.dp)
@@ -406,7 +425,7 @@ private fun ClockView(ui: LauncherUi, s: Settings, wDp: Dp, hDp: Dp) {
                 EventLine(ui, s, sp(small), refreshKey, gap = tSize * 0.22f)
             }
         }
-        ClockStyle.STACKED -> Box(Modifier.fillMaxSize().padding(horizontal = 6.dp), contentAlignment = Alignment.CenterStart) {
+        ClockStyle.STACKED -> Box(Modifier.fillMaxSize().holoPanel(s, 4.dp).padding(horizontal = 6.dp), contentAlignment = Alignment.CenterStart) {
             Column {
                 val parts = time.split(":")
                 val tSize = minOf(hDp * (0.44f - 0.06f * lines), wDp * 0.5f)
@@ -421,7 +440,7 @@ private fun ClockView(ui: LauncherUi, s: Settings, wDp: Dp, hDp: Dp) {
             }
         }
         // Malé: čas v ľavom hornom rohu, počasie hneď vedľa, pod tým dátum a udalosť.
-        ClockStyle.MINIMAL -> Box(Modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 2.dp), contentAlignment = Alignment.TopStart) {
+        ClockStyle.MINIMAL -> Box(Modifier.fillMaxSize().holoPanel(s, 4.dp).padding(horizontal = 6.dp, vertical = 2.dp), contentAlignment = Alignment.TopStart) {
             Column {
                 val tSize = minOf(hDp * (0.78f - 0.17f * lines), wDp * 0.24f)
                 val small = minOf(tSize * 0.36f, 20.dp)
@@ -525,7 +544,7 @@ private fun FavoritesView(ui: LauncherUi, s: Settings, hDp: Dp) {
         }
     }
     Column(
-        Modifier.fillMaxSize().then(
+        Modifier.fillMaxSize().holoPanel(s, 4.dp).then(
             if (needScroll) pullDown.verticalScroll(scroll) else pullDown
         ),
         verticalArrangement = if (needScroll) Arrangement.Top else Arrangement.Center,

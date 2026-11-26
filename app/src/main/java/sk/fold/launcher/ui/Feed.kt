@@ -71,10 +71,10 @@ fun FeedPage(ui: LauncherUi, s: Settings) {
     ) {
         item(key = "header") {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Feed", color = FEED_TEXT, fontSize = 30.sp, fontWeight = FontWeight.Medium, fontFamily = LocalFont.current, modifier = Modifier.weight(1f))
+                Text("Feed", color = if (s.holo) Holo.Text else FEED_TEXT, fontSize = 30.sp, fontWeight = FontWeight.Medium, fontFamily = LocalFont.current, modifier = Modifier.weight(1f))
                 IconButton(onClick = { ui.sheet = Sheet.FeedWidgets }) {
-                    Box(Modifier.clip(CircleShape).background(Color.White).padding(6.dp)) {
-                        Icon(Icons.Filled.Add, "Pridať widget", tint = FEED_TEXT)
+                    Box(Modifier.clip(CircleShape).background(if (s.holo) Holo.Glass else Color.White).padding(6.dp)) {
+                        Icon(Icons.Filled.Add, "Pridať widget", tint = if (s.holo) Holo.Cyan else FEED_TEXT)
                     }
                 }
             }
@@ -88,19 +88,19 @@ fun FeedPage(ui: LauncherUi, s: Settings) {
                 )
             }
         }
-        items(feed, key = { it.id }) { f -> FeedWidget(ui, f, state, feed) }
+        items(feed, key = { it.id }) { f -> FeedWidget(ui, f, state, feed, s) }
     }
 }
 
 @Composable
-private fun FeedWidget(ui: LauncherUi, f: FeedItem, list: LazyListState, all: List<FeedItem>) {
+private fun FeedWidget(ui: LauncherUi, f: FeedItem, list: LazyListState, all: List<FeedItem>, s: Settings) {
     val ctx = LocalContext.current
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val fling = ScrollableDefaults.flingBehavior()
     var menu by remember { mutableStateOf(false) }
     val info = remember(f.widgetId) { runCatching { Widgets.manager.getAppWidgetInfo(f.widgetId) }.getOrNull() }
-    BoxWithConstraints(Modifier.fillMaxWidth().height(f.height.dp).clip(RoundedCornerShape(22.dp))) {
+    BoxWithConstraints(Modifier.fillMaxWidth().height(f.height.dp).clip(RoundedCornerShape(22.dp)).holoFrame(s, 22.dp)) {
         val w = maxWidth
         if (info == null) {
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)), contentAlignment = Alignment.Center) {

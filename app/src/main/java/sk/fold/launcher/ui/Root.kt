@@ -73,6 +73,14 @@ fun LauncherRoot(ui: LauncherUi) {
         val layout by Store.layout(screen).collectAsState()
 
         if (s.wallpaperDim > 0f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = s.wallpaperDim)))
+        // Hologram: modrá vineta cez tapetu
+        if (s.launcherTheme == sk.fold.launcher.data.LauncherTheme.HOLO) Box(
+            Modifier.fillMaxSize().background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    listOf(Color(0x88020814), Color(0x2206182E), Color(0x2206182E), Color(0xAA020814))
+                )
+            )
+        )
 
         val drawerVisible by remember { derivedStateOf { ui.drawerAnim.value > 0.001f } }
         val hPx = constraints.maxHeight.toFloat()

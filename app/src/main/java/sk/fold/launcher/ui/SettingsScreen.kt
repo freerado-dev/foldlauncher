@@ -72,6 +72,7 @@ import sk.fold.launcher.data.FontChoice
 import sk.fold.launcher.data.GestureAction
 import sk.fold.launcher.data.IconPacks
 import sk.fold.launcher.data.IconShape
+import sk.fold.launcher.data.LauncherTheme
 import sk.fold.launcher.data.LockService
 import sk.fold.launcher.data.Screen
 import sk.fold.launcher.data.Settings
@@ -316,6 +317,18 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                 }
             }
 
+            item { SectionTitle("Téma launchera") }
+            item {
+                Group {
+                    ChoiceRow("Téma", LauncherTheme.entries, s.launcherTheme, { it.label }) { v -> edit { it.copy(launcherTheme = v) } }
+                    Text(
+                        if (s.holo) "Hologram: tmavomodré sklo, tyrkysové žiarenie a HUD panely. Na plochu si môžeš pridať animovaný Holo kruh (Pridať widget)."
+                        else "Štandard: pôvodný vzhľad launchera.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                    )
+                }
+            }
             item { SectionTitle("Písmo a farby") }
             item {
                 Group {

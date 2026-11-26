@@ -59,15 +59,27 @@ fun FoldTheme(s: Settings, content: @Composable () -> Unit) {
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
-    val scheme = if (s.dynamicColor && Build.VERSION.SDK_INT >= 31) {
+    val holo = s.launcherTheme == sk.fold.launcher.data.LauncherTheme.HOLO
+    val scheme = if (holo) {
+        // Hologram: tmavomodré sklo s tyrkysovým zvýraznením
+        darkColorScheme(
+            primary = Holo.Cyan, onPrimary = Color(0xFF00141F), primaryContainer = Color(0xFF0B3550), onPrimaryContainer = Holo.Text,
+            secondary = Holo.CyanSoft, tertiary = Holo.CyanSoft,
+            background = Holo.Navy, onBackground = Holo.Text,
+            surface = Color(0xFF07111F), onSurface = Holo.Text,
+            surfaceVariant = Color(0xFF0E2236), onSurfaceVariant = Color(0xFF9CC9DA),
+            surfaceContainer = Color(0xFF0B1A2C), surfaceContainerHigh = Color(0xFF102236),
+            outline = Color(0xFF2E6C86),
+        )
+    } else if (s.dynamicColor && Build.VERSION.SDK_INT >= 31) {
         if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
     } else {
         val a = Color(s.accent)
         if (dark) darkColorScheme(primary = a, secondary = a, tertiary = a)
         else lightColorScheme(primary = a, secondary = a, tertiary = a)
     }
-    val ff = fontFamily(s.font)
-    CompositionLocalProvider(LocalDark provides dark, LocalFont provides ff) {
+    val ff = if (holo && s.font == FontChoice.SYSTEM) fontFamily(FontChoice.CONDENSED) else fontFamily(s.font)
+    CompositionLocalProvider(LocalDark provides (dark || holo), LocalFont provides ff) {
         MaterialTheme(colorScheme = scheme, typography = typographyFor(ff), content = content)
     }
 }

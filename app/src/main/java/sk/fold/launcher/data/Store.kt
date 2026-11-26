@@ -140,6 +140,7 @@ object Store {
         ItemType.FAVORITES -> span(s, 300f, 330f)
         ItemType.SEARCH -> span(s, 320f, 54f)
         ItemType.ASSISTANT -> span(s, 64f, 64f)
+        ItemType.HOLO_RING -> span(s, 180f, 180f)
         else -> appSpan(s)
     }
 
@@ -294,7 +295,7 @@ object Store {
         put("animSpeed", s.animSpeed.name); put("drawerSort", s.drawerSort.name)
         put("showRecent", s.showRecent); put("showWork", s.showWork)
         put("favIcon3", s.favIconSize.toDouble()); put("favFolderColor", s.favFolderColor)
-        put("clockApp", s.clockApp); put("weatherApp", s.weatherApp); put("showWeather", s.showWeather); put("showEvents", s.showEvents); put("folderSheet", s.folderSheet); put("feedEnabled", s.feedEnabled); put("popupColor", s.popupColor); put("popupAlpha", s.popupAlpha.toDouble())
+        put("clockApp", s.clockApp); put("weatherApp", s.weatherApp); put("showWeather", s.showWeather); put("showEvents", s.showEvents); put("folderSheet", s.folderSheet); put("feedEnabled", s.feedEnabled); put("launcherTheme", s.launcherTheme.name); put("popupColor", s.popupColor); put("popupAlpha", s.popupAlpha.toDouble())
         put("weatherCity", s.weatherCity); put("weatherF", s.weatherF); put("badgeSize", s.badgeSize.toDouble()); put("assistantKey", s.assistantKey)
         put("floatAssist", s.floatAssist); put("floatSize", s.floatSize.toDouble())
         put("floatCoverX", s.floatCoverX.toDouble()); put("floatCoverY", s.floatCoverY.toDouble())
@@ -360,6 +361,7 @@ object Store {
             showEvents = o.optBoolean("showEvents", d.showEvents),
             folderSheet = o.optBoolean("folderSheet", d.folderSheet),
             feedEnabled = o.optBoolean("feedEnabled", d.feedEnabled),
+            launcherTheme = en(o.str("launcherTheme"), d.launcherTheme),
             popupColor = o.optLong("popupColor", d.popupColor),
             popupAlpha = f("popupAlpha", d.popupAlpha),
             weatherCity = o.optString("weatherCity", ""),

@@ -163,6 +163,7 @@ fun WidgetPicker(ui: LauncherUi, screen: Screen, feed: Boolean = false) {
                     item { ElementCard("Obľúbené", "Zoznam ako Niagara", Icons.Filled.Star) { ui.sheet = null; ui.addElement(ItemType.FAVORITES) } }
                     item { ElementCard("Priečinok", "Skupina aplikácií", Icons.Filled.Folder) { ui.addElement(ItemType.FOLDER) } }
                     item { ElementCard("Hlasový asistent", "Gemini, Google, Bixby…", Icons.Filled.Mic) { ui.sheet = null; ui.addElement(ItemType.ASSISTANT) } }
+                    item { ElementCard("Holo kruh", "Animovaný prvok, ťuknutím asistent", Icons.Filled.Mic) { ui.sheet = null; ui.addElement(ItemType.HOLO_RING) } }
                     item { ElementCard("Plávajúci asistent", "Kamkoľvek, nad všetkým", Icons.Filled.Mic) { ui.sheet = null; ui.enableFloatingAssistant() } }
                 }
             }
@@ -298,14 +299,14 @@ fun AppPicker(
 @Composable
 private fun popupBg(): Color {
     val s by Store.settings.collectAsState()
-    return Color(s.popupColor).copy(alpha = s.popupAlpha)
+    return if (s.holo) Holo.GlassDeep else Color(s.popupColor).copy(alpha = s.popupAlpha)
 }
 
 /** Text sa prispôsobí svetlosti pozadia, aby bol vždy čitateľný. */
 @Composable
 private fun popupLight(): Boolean {
     val s by Store.settings.collectAsState()
-    return Color(s.popupColor).luminance() > 0.5f
+    return !s.holo && Color(s.popupColor).luminance() > 0.5f
 }
 
 @Composable
@@ -316,7 +317,11 @@ private fun popupSub(): Color = popupText().copy(alpha = 0.7f)
 
 @Composable
 private fun PopupSurface(content: @Composable () -> Unit) {
-    Surface(shape = RoundedCornerShape(28.dp), color = popupBg(), contentColor = popupText()) { content() }
+    val s by Store.settings.collectAsState()
+    Surface(
+        shape = RoundedCornerShape(28.dp), color = popupBg(), contentColor = popupText(),
+        border = if (s.holo) androidx.compose.foundation.BorderStroke(1.dp, Holo.Cyan.copy(alpha = 0.7f)) else null,
+    ) { content() }
 }
 
 /** Priečinok ako okno alebo ako panel zdola (podľa nastavenia). */

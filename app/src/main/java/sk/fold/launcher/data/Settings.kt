@@ -23,6 +23,9 @@ enum class DrawerStyle(val label: String) { LIST("Zoznam"), GRID("Mriežka") }
 
 enum class ClockStyle(val label: String) { LARGE("Veľké"), STACKED("Pod sebou"), MINIMAL("Malé") }
 
+/** Vzhľad celého launchera. */
+enum class LauncherTheme(val label: String) { STANDARD("Štandard"), HOLO("Hologram") }
+
 enum class PageEffect(val label: String) { SLIDE("Posun"), FADE("Prelínanie"), ZOOM("Zoom"), CUBE("Kocka") }
 
 enum class AnimSpeed(val label: String, val stiffness: Float) {
@@ -102,6 +105,7 @@ data class Settings(
     val folderSheet: Boolean = false,
     /** Feed stránka naľavo od hlavnej plochy. */
     val feedEnabled: Boolean = true,
+    val launcherTheme: LauncherTheme = LauncherTheme.STANDARD,
     /** Farba pozadia okien a panelov (priečinky, Váš program) – RGB a priehľadnosť. */
     val popupColor: Long = 0xFF1C1C20,
     val popupAlpha: Float = 0.95f,
