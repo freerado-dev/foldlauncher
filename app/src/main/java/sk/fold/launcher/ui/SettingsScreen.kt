@@ -255,6 +255,7 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                     }
                     SwitchRow("Zobraziť mriežku pri úpravách", checked = s.showGrid) { v -> edit { it.copy(showGrid = v) } }
                     SwitchRow("Zamknúť rozloženie", "Zabráni náhodnému presunu", s.lockLayout) { v -> edit { it.copy(lockLayout = v) } }
+                    PopupColorRow(s)
                     ChoiceRow("Otváranie priečinkov", listOf(false, true), s.folderSheet, { if (it) "Panel zdola" else "Okno" }) { v ->
                         edit { it.copy(folderSheet = v) }
                     }
@@ -456,6 +457,41 @@ private fun openA11ySettings(act: android.app.Activity) {
         act.startActivity(Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS").putExtra(Intent.EXTRA_COMPONENT_NAME, cn))
     }.isSuccess
     if (!ok) sk.fold.launcher.data.SysActions.openAccessibility(act)
+}
+
+private val POPUP_COLORS: List<Long> = listOf(
+    0xFF1C1C20, 0xFF000000, 0xFF14142A, 0xFF1E2A3A, 0xFF2A1E3A, 0xFF3A1E24,
+    0xFF1E3A2A, 0xFF3A3A3E, 0xFF5B8DEF, 0xFFE8E8EE, 0xFFFFFFFF,
+)
+
+/** Farba pozadia okien a panelov – predvoľby, vlastná HEX farba a priehľadnosť. */
+@Composable
+private fun PopupColorRow(s: Settings) {
+    var hex by remember { mutableStateOf(false) }
+    Text("Farba pozadia okien a panelov", Modifier.padding(start = 18.dp, end = 18.dp, top = 8.dp))
+    Text("Priečinky (okno aj panel) a Váš program", style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 18.dp))
+    FlowRow(Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
+        POPUP_COLORS.forEach { c ->
+            Box(
+                Modifier.padding(4.dp).size(38.dp).clip(CircleShape).background(Color(c))
+                    .border(if (c == s.popupColor) 3.dp else 1.dp,
+                        if (c == s.popupColor) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape)
+                    .clickable { edit { it.copy(popupColor = c) } },
+            )
+        }
+        Box(
+            Modifier.padding(4.dp).size(38.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable { hex = true },
+            contentAlignment = Alignment.Center,
+        ) { Text("#", fontWeight = FontWeight.Bold) }
+    }
+    SliderRow("Priehľadnosť pozadia", s.popupAlpha, 0.5f..1f, 0, { "${(it * 100).roundToInt()} %" }) { v -> edit { it.copy(popupAlpha = v) } }
+    if (hex) TextDialog("Vlastná farba (HEX)", "#%06X".format(s.popupColor and 0xFFFFFF), "Napr. #202840", onDismiss = { hex = false }) { v ->
+        val c = v.removePrefix("#").toLongOrNull(16)
+        if (c != null && v.removePrefix("#").length == 6) edit { it.copy(popupColor = 0xFF000000 or c) }
+        hex = false
+    }
 }
 
 @Composable

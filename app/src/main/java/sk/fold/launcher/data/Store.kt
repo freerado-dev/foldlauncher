@@ -250,7 +250,7 @@ object Store {
         put("animSpeed", s.animSpeed.name); put("drawerSort", s.drawerSort.name)
         put("showRecent", s.showRecent); put("showWork", s.showWork)
         put("favIcon3", s.favIconSize.toDouble()); put("favFolderColor", s.favFolderColor)
-        put("clockApp", s.clockApp); put("weatherApp", s.weatherApp); put("showWeather", s.showWeather); put("showEvents", s.showEvents); put("folderSheet", s.folderSheet)
+        put("clockApp", s.clockApp); put("weatherApp", s.weatherApp); put("showWeather", s.showWeather); put("showEvents", s.showEvents); put("folderSheet", s.folderSheet); put("popupColor", s.popupColor); put("popupAlpha", s.popupAlpha.toDouble())
         put("weatherCity", s.weatherCity); put("weatherF", s.weatherF); put("badgeSize", s.badgeSize.toDouble()); put("assistantKey", s.assistantKey)
         put("floatAssist", s.floatAssist); put("floatSize", s.floatSize.toDouble())
         put("floatCoverX", s.floatCoverX.toDouble()); put("floatCoverY", s.floatCoverY.toDouble())
@@ -315,6 +315,8 @@ object Store {
             showWeather = o.optBoolean("showWeather", d.showWeather),
             showEvents = o.optBoolean("showEvents", d.showEvents),
             folderSheet = o.optBoolean("folderSheet", d.folderSheet),
+            popupColor = o.optLong("popupColor", d.popupColor),
+            popupAlpha = f("popupAlpha", d.popupAlpha),
             weatherCity = o.optString("weatherCity", ""),
             weatherF = o.optBoolean("weatherF", d.weatherF),
             badgeSize = f("badgeSize", d.badgeSize),

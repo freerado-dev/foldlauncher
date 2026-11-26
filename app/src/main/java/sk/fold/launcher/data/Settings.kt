@@ -100,6 +100,9 @@ data class Settings(
     val showEvents: Boolean = true,
     /** true = priečinky sa otvárajú ako panel zdola (ako udalosti), false = okno. */
     val folderSheet: Boolean = false,
+    /** Farba pozadia okien a panelov (priečinky, Váš program) – RGB a priehľadnosť. */
+    val popupColor: Long = 0xFF1C1C20,
+    val popupAlpha: Float = 0.95f,
     /** Mesto pre počasie ("" = poloha telefónu). */
     val weatherCity: String = "",
     val weatherF: Boolean = false,

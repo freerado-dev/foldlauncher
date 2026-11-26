@@ -25,6 +25,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -289,13 +290,28 @@ fun AppPicker(
 
 /** Okno priečinka – rovnaké pre priečinok na ploche aj v obľúbených. */
 /** Tmavé „sklo“ s bielym textom – dobre čitateľné nad tapetou bez ohľadu na tému. */
-private val PopupBg = Color(0xF21C1C20)
-private val PopupText = Color(0xFFF2F2F5)
-private val PopupSub = Color(0xB3F2F2F5)
+@Composable
+private fun popupBg(): Color {
+    val s by Store.settings.collectAsState()
+    return Color(s.popupColor).copy(alpha = s.popupAlpha)
+}
+
+/** Text sa prispôsobí svetlosti pozadia, aby bol vždy čitateľný. */
+@Composable
+private fun popupLight(): Boolean {
+    val s by Store.settings.collectAsState()
+    return Color(s.popupColor).luminance() > 0.5f
+}
+
+@Composable
+private fun popupText(): Color = if (popupLight()) Color(0xFF16161A) else Color(0xFFF2F2F5)
+
+@Composable
+private fun popupSub(): Color = popupText().copy(alpha = 0.7f)
 
 @Composable
 private fun PopupSurface(content: @Composable () -> Unit) {
-    Surface(shape = RoundedCornerShape(28.dp), color = PopupBg, contentColor = PopupText) { content() }
+    Surface(shape = RoundedCornerShape(28.dp), color = popupBg(), contentColor = popupText()) { content() }
 }
 
 /** Priečinok ako okno alebo ako panel zdola (podľa nastavenia). */
@@ -304,12 +320,14 @@ private fun PopupSurface(content: @Composable () -> Unit) {
 private fun FolderContainer(ui: LauncherUi, content: @Composable () -> Unit) {
     val s by Store.settings.collectAsState()
     if (s.folderSheet) {
+        // Panel vybehne do dvoch tretín výšky displeja.
+        val h = (LocalConfiguration.current.screenHeightDp * 2f / 3f).dp
         ModalBottomSheet(
             onDismissRequest = { ui.sheet = null },
-            sheetState = rememberModalBottomSheetState(),
-            containerColor = PopupBg,
-            contentColor = PopupText,
-        ) { content() }
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = popupBg(),
+            contentColor = popupText(),
+        ) { Box(Modifier.fillMaxWidth().height(h)) { content() } }
     } else {
         Dialog(onDismissRequest = { ui.sheet = null }) { PopupSurface { content() } }
     }
@@ -332,7 +350,7 @@ fun FolderDialog(
                     IconButton(onClick = onAdd) { Icon(Icons.Filled.Add, "Pridať aplikácie") }
                 }
                 if (inside.isEmpty()) Text("Priečinok je prázdny – pridaj aplikácie tlačidlom +", Modifier.padding(vertical = 24.dp))
-                else Text("Podrž aplikáciu pre odobratie z priečinka", style = MaterialTheme.typography.bodySmall, color = PopupSub)
+                else Text("Podrž aplikáciu pre odobratie z priečinka", style = MaterialTheme.typography.bodySmall, color = popupSub())
                 LazyVerticalGrid(columns = GridCells.Adaptive(84.dp), modifier = Modifier.heightIn(max = 460.dp)) {
                     items(inside, key = { it.key }) { a ->
                         var menu by remember { mutableStateOf(false) }
@@ -427,7 +445,7 @@ fun FavFolderSheet(ui: LauncherUi, id: String) {
                                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     val line = if (s.favNotifText && n != null) listOfNotNull(n.title, n.text).joinToString(" · ") else ""
                                     if (line.isNotEmpty()) Text(line, fontSize = subSize, fontFamily = ff, maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis, color = PopupSub)
+                                        overflow = TextOverflow.Ellipsis, color = popupSub())
                                 }
                             }
                             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -473,8 +491,8 @@ fun AgendaSheet(ui: LauncherUi) {
     ModalBottomSheet(
         onDismissRequest = { ui.sheet = null },
         sheetState = rememberModalBottomSheetState(),
-        containerColor = PopupBg,
-        contentColor = PopupText,
+        containerColor = popupBg(),
+        contentColor = popupText(),
     ) {
         Text("Váš program", fontSize = 22.sp, modifier = Modifier.padding(start = 24.dp, bottom = 8.dp))
         val list = events
@@ -485,7 +503,7 @@ fun AgendaSheet(ui: LauncherUi) {
         val groups = list.groupBy { it.day }.toSortedMap()
         LazyColumn(Modifier.fillMaxWidth().padding(horizontal = 24.dp), contentPadding = PaddingValues(bottom = 32.dp)) {
             if (groups.isEmpty()) {
-                item { Text("Žiadne nadchádzajúce udalosti", color = PopupSub, modifier = Modifier.padding(vertical = 12.dp)) }
+                item { Text("Žiadne nadchádzajúce udalosti", color = popupSub(), modifier = Modifier.padding(vertical = 12.dp)) }
                 item { NewEventRow(accent) }
             }
             var first = true
@@ -496,7 +514,7 @@ fun AgendaSheet(ui: LauncherUi) {
                     Row(Modifier.padding(top = 16.dp, bottom = 6.dp), verticalAlignment = Alignment.Bottom) {
                         Text(day.format(dayFmt), fontSize = 15.sp, fontWeight = FontWeight.Medium)
                         Spacer(Modifier.width(6.dp))
-                        Text(sk.fold.launcher.data.Agenda.relative(day), fontSize = 12.sp, color = PopupSub)
+                        Text(sk.fold.launcher.data.Agenda.relative(day), fontSize = 12.sp, color = popupSub())
                     }
                 }
                 items(evs, key = { "${it.id}-${it.begin}" }) { e ->
@@ -510,11 +528,11 @@ fun AgendaSheet(ui: LauncherUi) {
                         Column(Modifier.weight(1f)) {
                             Text(e.title, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             if (!e.allDay) Text(timeFmt.format(java.util.Date(e.begin)) + " – " + timeFmt.format(java.util.Date(e.end)),
-                                fontSize = 13.sp, color = PopupSub)
+                                fontSize = 13.sp, color = popupSub())
                             if (e.location.isNotBlank()) Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.Place, null, tint = PopupSub, modifier = Modifier.size(14.dp))
+                                Icon(Icons.Filled.Place, null, tint = popupSub(), modifier = Modifier.size(14.dp))
                                 Spacer(Modifier.width(4.dp))
-                                Text(e.location, fontSize = 13.sp, color = PopupSub, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(e.location, fontSize = 13.sp, color = popupSub(), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
