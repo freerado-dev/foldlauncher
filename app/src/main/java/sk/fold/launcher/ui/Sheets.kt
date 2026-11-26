@@ -16,6 +16,11 @@ import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.unit.Dp
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
@@ -337,7 +342,9 @@ private fun FolderContainer(ui: LauncherUi, content: @Composable () -> Unit) {
 fun FolderDialog(
     ui: LauncherUi, name: String, keys: List<String>,
     onRename: () -> Unit, onAdd: () -> Unit, onRemoveApp: (String) -> Unit,
+    onReorder: (List<String>) -> Unit = {},
 ) {
+    var reorder by remember { mutableStateOf(false) }
     val apps by Apps.list.collectAsState()
     val s by Store.settings.collectAsState()
     val inside = remember(apps, keys) { keys.mapNotNull { k -> apps.firstOrNull { it.key == k } } }
@@ -347,11 +354,27 @@ fun FolderDialog(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).clickable { onRename() })
                     IconButton(onClick = onRename) { Icon(Icons.Filled.Edit, "Premenovať") }
+                    if (inside.size > 1) IconButton(onClick = { reorder = !reorder }) {
+                        Icon(if (reorder) Icons.Filled.Check else Icons.Filled.SwapVert, if (reorder) "Hotovo" else "Zmeniť poradie")
+                    }
                     IconButton(onClick = onAdd) { Icon(Icons.Filled.Add, "Pridať aplikácie") }
                 }
                 if (inside.isEmpty()) Text("Priečinok je prázdny – pridaj aplikácie tlačidlom +", Modifier.padding(vertical = 24.dp))
-                else Text("Podrž aplikáciu pre odobratie z priečinka", style = MaterialTheme.typography.bodySmall, color = popupSub())
-                LazyVerticalGrid(columns = GridCells.Adaptive(84.dp), modifier = Modifier.heightIn(max = 460.dp)) {
+                else Text(
+                    if (reorder) "Poradie zmeníš potiahnutím za úchyt ≡" else "Podrž aplikáciu pre odobratie z priečinka",
+                    style = MaterialTheme.typography.bodySmall, color = popupSub(),
+                )
+                if (reorder) ReorderList(
+                    keys = inside.map { it.key }, rowHeight = 56.dp, maxHeight = 460.dp,
+                    onCommit = { order -> onReorder(order + keys.filter { it !in order }) },
+                ) { key ->
+                    val a = inside.first { it.key == key }
+                    Row(Modifier.weight(1f).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        AppIconImage(a, 40.dp, s)
+                        Spacer(Modifier.width(14.dp))
+                        Text(labelOf(a, s), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                } else LazyVerticalGrid(columns = GridCells.Adaptive(84.dp), modifier = Modifier.heightIn(max = 460.dp)) {
                     items(inside, key = { it.key }) { a ->
                         var menu by remember { mutableStateOf(false) }
                         Box {
@@ -374,7 +397,6 @@ fun FolderDialog(
                                 DropdownMenuItem(text = { Text("Informácie o aplikácii") }, onClick = { menu = false; Apps.details(ui.activity, a) })
                             }
                         }
-                    }
                 }
             }
         }
@@ -391,6 +413,7 @@ fun FolderSheet(ui: LauncherUi, screen: Screen, id: Long) {
         onRename = { ui.sheet = Sheet.RenameItem(id) },
         onAdd = { ui.sheet = Sheet.FolderApps(id) },
         onRemoveApp = { k -> Store.editLayout(screen) { l -> l.update(id) { it.copy(apps = it.apps - k) } } },
+        onReorder = { order -> Store.editLayout(screen) { l -> l.update(id) { it.copy(apps = order) } } },
     )
 }
 
@@ -421,11 +444,15 @@ fun FavFolderSheet(ui: LauncherUi, id: String) {
                     IconButton(onClick = { ui.sheet = Sheet.FavFolderApps(id) }) { Icon(Icons.Filled.Add, "Pridať aplikácie") }
                 }
                 if (inside.isEmpty()) Text("Priečinok je prázdny – pridaj aplikácie tlačidlom +", Modifier.padding(24.dp))
-                LazyColumn(Modifier.heightIn(max = maxH).padding(horizontal = 8.dp)) {
-                    items(inside, key = { it.key }) { a ->
-                        var menu by remember { mutableStateOf(false) }
-                        val n = notifs[a.pkg]
-                        Box {
+                ReorderList(
+                    keys = inside.map { it.key }, rowHeight = rowH, maxHeight = maxH,
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    onCommit = { order -> editFavFolder(id) { f2 -> f2.copy(apps = order + f2.apps.filter { it !in order }) } },
+                ) { key ->
+                    val a = inside.first { it.key == key }
+                    var menu by remember { mutableStateOf(false) }
+                    val n = notifs[a.pkg]
+                        Box(Modifier.weight(1f)) {
                             Row(
                                 Modifier.fillMaxWidth().height(rowH).clip(RoundedCornerShape(12.dp))
                                     .combinedClickable(
@@ -455,7 +482,6 @@ fun FavFolderSheet(ui: LauncherUi, id: String) {
                                 DropdownMenuItem(text = { Text("Informácie o aplikácii") }, onClick = { menu = false; Apps.details(ui.activity, a) })
                             }
                         }
-                    }
                 }
             }
         }
@@ -691,6 +717,62 @@ fun FavoritesEditor(ui: LauncherUi, onClose: () -> Unit) {
         TextDialog("Premenovať priečinok", s.favFolders[fid]?.name ?: "", "", onDismiss = { renameFolder = null }) { name ->
             if (name.isNotEmpty()) editFavFolder(fid) { it.copy(name = name) }
             renameFolder = null
+        }
+    }
+}
+
+/** Zoznam s ťahaním za úchyt ≡ na zmenu poradia (pevná výška riadku). */
+@Composable
+fun ReorderList(
+    keys: List<String>, rowHeight: Dp, maxHeight: Dp, onCommit: (List<String>) -> Unit,
+    modifier: Modifier = Modifier, row: @Composable RowScope.(String) -> Unit,
+) {
+    val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
+    val list = remember { mutableStateListOf<String>().apply { addAll(keys) } }
+    var dragKey by remember { mutableStateOf<String?>(null) }
+    var dragOff by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(keys, dragKey) {
+        if (dragKey == null && list.toList() != keys) { list.clear(); list.addAll(keys) }
+    }
+    val rowPx = with(density) { rowHeight.toPx() }
+    val commit by rememberUpdatedState(onCommit)
+    Column(modifier.heightIn(max = maxHeight).verticalScroll(rememberScrollState(), enabled = dragKey == null)) {
+        list.forEach { k ->
+            key(k) {
+                val isDrag = dragKey == k
+                Row(
+                    Modifier.fillMaxWidth().height(rowHeight).zIndex(if (isDrag) 1f else 0f)
+                        .graphicsLayer {
+                            translationY = if (isDrag) dragOff else 0f
+                            if (isDrag) { scaleX = 1.02f; scaleY = 1.02f }
+                        }
+                        .background(if (isDrag) popupText().copy(alpha = 0.08f) else Color.Transparent, RoundedCornerShape(12.dp)),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    row(k)
+                    Icon(
+                        Icons.Filled.DragHandle, "Presunúť", tint = popupSub(),
+                        modifier = Modifier.size(44.dp).pointerInput(k) {
+                            detectDragGestures(
+                                onDragStart = { dragKey = k; dragOff = 0f; buzz(haptic, HapticFeedbackType.LongPress) },
+                                onDrag = { c, d ->
+                                    c.consume()
+                                    dragOff += d.y
+                                    val i = list.indexOf(k)
+                                    if (dragOff > rowPx / 2 && i in 0 until list.size - 1) {
+                                        list.swapAt(i, i + 1); dragOff -= rowPx; buzz(haptic, HapticFeedbackType.TextHandleMove)
+                                    } else if (dragOff < -rowPx / 2 && i > 0) {
+                                        list.swapAt(i, i - 1); dragOff += rowPx; buzz(haptic, HapticFeedbackType.TextHandleMove)
+                                    }
+                                },
+                                onDragEnd = { if (dragKey == k) { dragKey = null; dragOff = 0f; commit(list.toList()) } },
+                                onDragCancel = { if (dragKey == k) { dragKey = null; dragOff = 0f; commit(list.toList()) } },
+                            )
+                        }.padding(10.dp),
+                    )
+                }
+            }
         }
     }
 }
