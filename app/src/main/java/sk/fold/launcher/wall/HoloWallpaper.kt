@@ -34,7 +34,8 @@ class HoloWallpaper : WallpaperService() {
         private val frame = object : Runnable {
             override fun run() {
                 draw()
-                if (visible) handler.postDelayed(this, 33)
+                // pri vypnutej animácii sa nakreslí jeden statický obrázok a slučka sa zastaví
+                if (visible && Store.settings.value.wallAnimate) handler.postDelayed(this, 33)
             }
         }
 
@@ -75,7 +76,8 @@ class HoloWallpaper : WallpaperService() {
             val c: Canvas = runCatching { holder.lockHardwareCanvas() }.getOrNull()
                 ?: runCatching { holder.lockCanvas() }.getOrNull() ?: return
             try {
-                renderer.draw(c, w.toFloat(), h.toFloat(), (SystemClock.uptimeMillis() - start) / 1000f)
+                val t = if (Store.settings.value.wallAnimate) (SystemClock.uptimeMillis() - start) / 1000f else 0f
+                renderer.draw(c, w.toFloat(), h.toFloat(), t)
             } finally {
                 runCatching { holder.unlockCanvasAndPost(c) }
             }

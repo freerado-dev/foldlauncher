@@ -322,6 +322,9 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                 Group {
                     ChoiceRow("Téma", LauncherTheme.entries, s.launcherTheme, { it.label }) { v -> edit { it.copy(launcherTheme = v) } }
                     RingSettings(s)
+                    SwitchRow("Animácia živých tapiet", "Vypnuté = tapeta je statická (bez lúčov a pohybu), šetrí batériu", s.wallAnimate) { v ->
+                        edit { it.copy(wallAnimate = v) }
+                    }
                     WallpaperSettings(s)
                     BeamSettings(ui, s)
                     Text(

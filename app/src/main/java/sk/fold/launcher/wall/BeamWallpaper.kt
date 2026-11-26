@@ -37,7 +37,8 @@ class BeamWallpaper : WallpaperService() {
         private val frame = object : Runnable {
             override fun run() {
                 draw()
-                if (visible) handler.postDelayed(this, 33)
+                // pri vypnutej animácii sa nakreslí jeden statický obrázok a slučka sa zastaví
+                if (visible && Store.settings.value.wallAnimate) handler.postDelayed(this, 33)
             }
         }
 
@@ -246,6 +247,7 @@ class BeamRenderer(private val ctx: Context) {
         } else {
             c.drawColor(Color.rgb(28, 28, 30))
         }
+        if (!s.wallAnimate) return
         val col = s.beamColor.toInt()
         val d = if (dirP >= 0) 1 else -1
         val periodS = periodP * bw * sc

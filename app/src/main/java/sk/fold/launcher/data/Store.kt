@@ -300,7 +300,7 @@ object Store {
         put("beamPhase", s.beamPhase.toDouble()); put("beamShift", s.beamShift.toDouble())
         put("beamInterval", s.beamInterval.toDouble()); put("beamCount", s.beamCount); put("beamBands", s.beamBands); put("beamGapGlow", s.beamGapGlow);
         put("beamLDir", s.beamLDir); put("beamLPeriod", s.beamLPeriod.toDouble()); put("beamLPhase", s.beamLPhase.toDouble())
-        put("beamLBands", s.beamLBands); put("beamAlign", s.beamAlign.toDouble()); put("popupColor", s.popupColor); put("popupAlpha", s.popupAlpha.toDouble())
+        put("beamLBands", s.beamLBands); put("beamAlign", s.beamAlign.toDouble()); put("wallAnimate", s.wallAnimate); put("popupColor", s.popupColor); put("popupAlpha", s.popupAlpha.toDouble())
         put("weatherCity", s.weatherCity); put("weatherF", s.weatherF); put("badgeSize", s.badgeSize.toDouble()); put("assistantKey", s.assistantKey)
         put("floatAssist", s.floatAssist); put("floatSize", s.floatSize.toDouble())
         put("floatCoverX", s.floatCoverX.toDouble()); put("floatCoverY", s.floatCoverY.toDouble())
@@ -383,6 +383,7 @@ object Store {
             beamLDir = o.optInt("beamLDir", d.beamLDir), beamLPeriod = f("beamLPeriod", d.beamLPeriod),
             beamLPhase = f("beamLPhase", d.beamLPhase), beamLBands = o.optString("beamLBands", d.beamLBands),
             beamAlign = f("beamAlign", d.beamAlign),
+            wallAnimate = o.optBoolean("wallAnimate", d.wallAnimate),
             popupColor = o.optLong("popupColor", d.popupColor),
             popupAlpha = f("popupAlpha", d.popupAlpha),
             weatherCity = o.optString("weatherCity", ""),

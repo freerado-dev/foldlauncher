@@ -132,6 +132,8 @@ data class Settings(
     val beamLBands: String = "",
     /** Zarovnanie obrázka pri orezaní: 0 = vľavo, 0.5 = stred, 1 = vpravo. */
     val beamAlign: Float = 1f,
+    /** Vypnutá animácia = živé tapety sú statické (bez lúčov / bez pohybu). */
+    val wallAnimate: Boolean = true,
     /** Farba pozadia okien a panelov (priečinky, Váš program) – RGB a priehľadnosť. */
     val popupColor: Long = 0xFF1C1C20,
     val popupAlpha: Float = 0.95f,
