@@ -198,12 +198,31 @@ object Apps {
             "android.speech.action.VOICE_SEARCH_HANDS_FREE" to "hlasové vyhľadávanie",
         )
         val out = LinkedHashMap<String, ExtraApp>()
-        for ((action, what) in actions) {
+        // Priame hlasové spúšťače Gemini / Google – niektoré hneď začnú počúvať (ako podržanie tlačidla vypnutia).
+        val g = "com.google.android.googlequicksearchbox"
+        val gIcon = runCatching { pm.getApplicationIcon(g) }.getOrNull()
+        if (gIcon != null) {
+            listOf(
+                "android.intent.action.VOICE_ASSIST" to "Gemini – hlasový povel (VOICE_ASSIST)",
+                "android.speech.action.VOICE_SEARCH_HANDS_FREE" to "Gemini – počúvanie hands-free",
+                Intent.ACTION_VOICE_COMMAND to "Gemini – hlasový príkaz",
+                "android.speech.action.WEB_SEARCH" to "Google – hlasové vyhľadávanie",
+                Intent.ACTION_ASSIST to "Gemini – panel asistenta",
+            ).forEach { (action, label) ->
+                val i = Intent(action).setPackage(g)
+                if (runCatching { pm.queryIntentActivities(i, PackageManager.MATCH_ALL).isNotEmpty() }.getOrDefault(false)) {
+                    val key = VOICE_PREFIX + action + "|" + g
+                    out[key] = ExtraApp(key, label, gIcon)
+                }
+            }
+        }
+        for ((action, what) in actions + listOf("android.intent.action.VOICE_ASSIST" to "hlasový povel")) {
             val list = runCatching { pm.queryIntentActivities(Intent(action), PackageManager.MATCH_ALL) }.getOrDefault(emptyList())
             for (ri in list) {
                 val ai = ri.activityInfo ?: continue
                 if (ai.packageName == c.packageName || !ai.exported) continue
                 val cn = ComponentName(ai.packageName, ai.name)
+                if (ai.packageName == g) continue
                 if (out.values.any { it.key.endsWith("|" + cn.flattenToString()) }) continue
                 val appLabel = runCatching { pm.getApplicationLabel(ai.applicationInfo).toString() }.getOrDefault(ai.packageName)
                 val key = VOICE_PREFIX + action + "|" + cn.flattenToString()
@@ -215,8 +234,9 @@ object Apps {
 
     fun labelForKey(c: Context, key: String): String? {
         if (key.startsWith(VOICE_PREFIX)) {
-            val cn = ComponentName.unflattenFromString(key.substringAfter("|")) ?: return null
-            return runCatching { c.packageManager.getApplicationLabel(c.packageManager.getApplicationInfo(cn.packageName, 0)).toString() }.getOrNull()
+            val target = key.substringAfter("|")
+            val pkg = ComponentName.unflattenFromString(target)?.packageName ?: target
+            return runCatching { c.packageManager.getApplicationLabel(c.packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrNull()
         }
         if (key.startsWith(ACTIVITY_PREFIX)) {
             val cn = ComponentName.unflattenFromString(key.removePrefix(ACTIVITY_PREFIX)) ?: return null
@@ -231,10 +251,12 @@ object Apps {
     fun launchKey(c: Context, key: String): Boolean {
         if (key.startsWith(VOICE_PREFIX)) {
             val action = key.removePrefix(VOICE_PREFIX).substringBefore("|")
-            val cn = ComponentName.unflattenFromString(key.substringAfter("|")) ?: return false
-            return runCatching {
-                c.startActivity(Intent(action).setComponent(cn).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            }.isSuccess
+            val target = key.substringAfter("|")
+            val i = Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            // cieľ je buď konkrétna aktivita "balík/trieda", alebo len balík
+            val cn = if (target.contains('/')) ComponentName.unflattenFromString(target) else null
+            if (cn != null) i.component = cn else i.setPackage(target)
+            return runCatching { c.startActivity(i) }.isSuccess
         }
         if (key.startsWith(ACTIVITY_PREFIX)) {
             val cn = ComponentName.unflattenFromString(key.removePrefix(ACTIVITY_PREFIX)) ?: return false

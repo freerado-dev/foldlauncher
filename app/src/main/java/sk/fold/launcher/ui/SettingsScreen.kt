@@ -28,6 +28,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -619,7 +621,7 @@ fun AssistantPage(ui: LauncherUi, onClose: () -> Unit) {
         LazyColumn(Modifier.fillMaxSize()) {
             item {
                 Text(
-                    "Vyber, čo spustí tlačidlo asistenta. Hlasovým príkazom pre Gemini alebo Google Asistenta ovládaš telefón aj " +
+                    "Ťukni na ▶ pri každej možnosti a vyskúšaj, ktorá hneď začne počúvať. Tú potom vyber. Vyber, čo spustí tlačidlo asistenta. Hlasovým príkazom pre Gemini alebo Google Asistenta ovládaš telefón aj " +
                         "zariadenia Google Home. Predvolený asistent je ten, ktorý máš v Nastaveniach → Aplikácie → Predvolené aplikácie → Digitálny asistent.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
@@ -643,7 +645,10 @@ fun AssistantPage(ui: LauncherUi, onClose: () -> Unit) {
                                 val img = remember(tg.key) { tg.icon?.let { sk.fold.launcher.data.IconCache.toBitmap(it, 96).asImageBitmap() } }
                                 if (img != null) androidx.compose.foundation.Image(img, null, Modifier.size(32.dp))
                                 Spacer(Modifier.width(12.dp))
-                                Text(tg.label)
+                                Text(tg.label, Modifier.weight(1f))
+                                IconButton(onClick = { sk.fold.launcher.data.Apps.launchKey(ctx, tg.key) }) {
+                                    Icon(Icons.Filled.PlayArrow, "Vyskúšať")
+                                }
                             }
                         }
                     }
