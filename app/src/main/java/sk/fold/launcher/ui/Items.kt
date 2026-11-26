@@ -148,6 +148,9 @@ fun BadgeMark(count: Int, s: Settings, modifier: Modifier = Modifier) {
     }
 }
 
+/** Spätné volania na ťahanie widgetu po dlhom podržaní. */
+class WidgetDrag(val start: () -> Unit, val move: (Offset) -> Unit, val end: (Boolean) -> Unit)
+
 @Composable
 fun ItemContent(ui: LauncherUi, item: HomeItem, s: Settings, wDp: Dp, hDp: Dp, drag: WidgetDrag? = null) {
     when (item.type) {
