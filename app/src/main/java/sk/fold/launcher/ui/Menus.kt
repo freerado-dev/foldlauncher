@@ -89,7 +89,14 @@ fun ItemMenu(ui: LauncherUi, item: HomeItem, dismiss: () -> Unit) {
         ItemType.FOLDER -> MenuRow("Upraviť obsah", Icons.Filled.Apps) { dismiss(); ui.sheet = Sheet.FolderApps(item.id) }
         ItemType.FAVORITES -> MenuRow("Upraviť obľúbené", Icons.Filled.Star) { dismiss(); ui.sheet = Sheet.Favorites }
         ItemType.CLOCK -> MenuRow("Nastavenia hodín a počasia", Icons.Filled.Schedule) { dismiss(); ui.sheet = Sheet.ClockSettings }
-        ItemType.ASSISTANT -> MenuRow("Vybrať asistenta", Icons.Filled.Mic) { dismiss(); ui.sheet = Sheet.AssistantSettings }
+        ItemType.ASSISTANT -> {
+            MenuRow("Vybrať asistenta", Icons.Filled.Mic) { dismiss(); ui.sheet = Sheet.AssistantSettings }
+            val hidden = item.label == ""
+            MenuRow(if (hidden) "Zobraziť popis" else "Len ikona (bez popisu)", Icons.Filled.Edit) {
+                dismiss()
+                Store.editLayout(ui.screen) { l -> l.update(item.id) { it.copy(label = if (hidden) null else "") } }
+            }
+        }
         else -> {}
     }
     if (item.type == ItemType.APP || item.type == ItemType.FOLDER || item.type == ItemType.SHORTCUT)

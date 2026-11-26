@@ -180,16 +180,17 @@ fun ItemContent(ui: LauncherUi, item: HomeItem, s: Settings, wDp: Dp, hDp: Dp, d
         ItemType.CLOCK -> ClockView(ui, s, wDp, hDp)
         ItemType.FAVORITES -> FavoritesView(ui, s, hDp)
         ItemType.SEARCH -> {}
-        ItemType.ASSISTANT -> IconTile("Asistent", s, wDp, hDp, 0) { sz -> AssistantIcon(sz) }
+        // label == "" znamená „bez popisu“ (len ikona)
+        ItemType.ASSISTANT -> IconTile(item.label ?: "Asistent", s, wDp, hDp, 0, noLabel = item.label == "") { sz -> AssistantIcon(sz) }
     }
 }
 
 @Composable
-private fun IconTile(label: String, s: Settings, wDp: Dp, hDp: Dp, badge: Int, icon: @Composable (Dp) -> Unit) {
+private fun IconTile(label: String, s: Settings, wDp: Dp, hDp: Dp, badge: Int, noLabel: Boolean = false, icon: @Composable (Dp) -> Unit) {
     // Zvislý odstup, aby ikony neboli nalepené nad sebou.
     val pad = hDp * 0.08f
     val labelH = (s.labelSize * 1.45f + 3f).dp
-    val showLabel = s.showLabels && hDp - labelH - pad * 2 >= 24.dp
+    val showLabel = !noLabel && s.showLabels && hDp - labelH - pad * 2 >= 24.dp
     val availH = hDp - pad * 2 - (if (showLabel) labelH + 3.dp else 0.dp)
     val iconSize = minOf(wDp * s.iconScale, availH).coerceAtLeast(16.dp)
     Column(
