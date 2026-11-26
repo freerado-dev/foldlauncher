@@ -291,7 +291,7 @@ fun HomePage(ui: LauncherUi, screen: Screen, layout: ScreenLayout, page: Int, s:
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
     val items = layout.items.filter { it.page == page }
-    val margin = if (screen.isCover) 14.dp else 6.dp
+    val margin = if (screen.isCover) 14.dp else 28.dp
     BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = margin, vertical = 2.dp)) {
         // Bunky podľa zvoleného počtu stĺpcov a riadkov – plocha využije celú výšku.
         val pageW = constraints.maxWidth.toFloat()
