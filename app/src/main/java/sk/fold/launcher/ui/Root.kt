@@ -114,7 +114,7 @@ fun LauncherRoot(ui: LauncherUi) {
         ui.sheet !is Sheet.RenameItem && ui.sheet != Sheet.RemovePage)
     SideEffect {
         val c = WindowCompat.getInsetsController(ui.activity.window, view)
-        val lightBars = overlay && !dark
+        val lightBars = (overlay && !dark) || (ui.feedVisible && !overlay)
         c.isAppearanceLightStatusBars = lightBars
         c.isAppearanceLightNavigationBars = lightBars
         c.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE

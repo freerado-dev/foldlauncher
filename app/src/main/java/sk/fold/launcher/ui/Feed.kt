@@ -71,20 +71,20 @@ fun FeedPage(ui: LauncherUi, s: Settings) {
     ) {
         item(key = "header") {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Feed", style = labelStyle(s, 30.sp), fontWeight = FontWeight.Medium, fontFamily = LocalFont.current, modifier = Modifier.weight(1f))
+                Text("Feed", color = FEED_TEXT, fontSize = 30.sp, fontWeight = FontWeight.Medium, fontFamily = LocalFont.current, modifier = Modifier.weight(1f))
                 IconButton(onClick = { ui.sheet = Sheet.FeedWidgets }) {
-                    Box(Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.22f)).padding(6.dp)) {
-                        Icon(Icons.Filled.Add, "Pridať widget", tint = Color.White)
+                    Box(Modifier.clip(CircleShape).background(Color.White).padding(6.dp)) {
+                        Icon(Icons.Filled.Add, "Pridať widget", tint = FEED_TEXT)
                     }
                 }
             }
         }
         if (feed.isEmpty()) item(key = "empty") {
             Column(Modifier.fillMaxWidth().padding(top = 80.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Filled.Widgets, null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.padding(8.dp))
+                Icon(Icons.Filled.Widgets, null, tint = FEED_TEXT.copy(alpha = 0.6f), modifier = Modifier.padding(8.dp))
                 Text(
                     "Feed je prázdny.\nTlačidlom + pridáš widgety pod seba.\nPodržaním widgetu zmeníš jeho výšku alebo poradie.",
-                    style = labelStyle(s, 15.sp, Color.White.copy(alpha = 0.85f)), textAlign = TextAlign.Center,
+                    color = FEED_TEXT.copy(alpha = 0.75f), fontSize = 15.sp, textAlign = TextAlign.Center,
                 )
             }
         }

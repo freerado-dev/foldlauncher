@@ -156,6 +156,17 @@ fun HomeScreen(ui: LauncherUi, screen: Screen, layout: ScreenLayout, s: Settings
         )
     }
 
+    // Bledé pozadie feedu (ako Google feed) – cez celú obrazovku, plynule podľa listovania.
+    if (off > 0) {
+        Box(
+            Modifier.fillMaxSize().graphicsLayer {
+                alpha = (1f - (pager.currentPage + pager.currentPageOffsetFraction)).coerceIn(0f, 1f)
+            }.background(FEED_BG)
+        )
+    }
+    val onFeed = off > 0 && pager.currentPage == 0 && !pager.isScrollInProgress
+    SideEffect { ui.feedVisible = onFeed }
+
     // V režime úprav sa stránka zmenší (mriežka ostane rovnaká) a nad/pod ňou sú lišty.
     BoxWithConstraints(Modifier.fillMaxSize().then(swipe).windowInsetsPadding(WindowInsets.safeDrawing)) {
         val h = maxHeight
@@ -286,6 +297,9 @@ private fun FloatingAssistant(ui: LauncherUi, screen: Screen, s: Settings, areaW
 private fun HomeMenuItem(text: String, icon: ImageVector, onClick: () -> Unit) {
     DropdownMenuItem(text = { Text(text) }, leadingIcon = { Icon(icon, null) }, onClick = onClick)
 }
+
+val FEED_BG = Color(0xF2F1F3F7)
+val FEED_TEXT = Color(0xFF1F1F24)
 
 @Composable
 private fun PageDots(count: Int, current: Int) {

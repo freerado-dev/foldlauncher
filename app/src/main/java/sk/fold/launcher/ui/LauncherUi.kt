@@ -55,6 +55,8 @@ class LauncherUi(val activity: MainActivity) {
     var homeSignal by mutableIntStateOf(0)
     var resumeTick by mutableIntStateOf(0)
     var homeScale by mutableFloatStateOf(1f)
+    /** true, keď je zobrazený feed (svetlé pozadie → tmavé ikony v stavovom riadku). */
+    var feedVisible by mutableStateOf(false)
     var cellW by mutableFloatStateOf(70f)
     var cellH by mutableFloatStateOf(70f)
 
