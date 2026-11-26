@@ -83,16 +83,52 @@ object BeamImage {
      * Uloží vybraný obrázok a nájde v ňom šikmé drážky. Vráti (smer +1 = „/“ alebo -1 = „\\“, rozostup a posun
      * – obe ako podiel šírky obrázka), alebo null.
      */
-    fun importAndDetect(ctx: Context, uri: Uri): Triple<Int, Float, Float>? = runCatching {
+    /** Výsledok rozpoznania: drážky a tmavé zvislé medzery. */
+    class Result(val dir: Int, val period: Float, val phase: Float, val bands: String)
+
+    fun importAndDetect(ctx: Context, uri: Uri): Result? = runCatching {
         ctx.contentResolver.openInputStream(uri)?.use { inp -> file(ctx).outputStream().use { inp.copyTo(it) } }
         val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file(ctx).path, opts)
         val sample = max(1, opts.outWidth / 700)
         val bmp = BitmapFactory.decodeFile(file(ctx).path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
         val r = detect(bmp)
+        val bands = detectBands(bmp)
         bmp.recycle()
-        r
+        r?.let { Result(it.first, it.second, it.third, bands) }
     }.getOrNull()
+
+    /** Tmavé zvislé pásy (tiene 3D záhybov): stĺpce výrazne tmavšie než okolie. */
+    private fun detectBands(b: Bitmap): String {
+        val w = b.width
+        val h = b.height
+        val col = FloatArray(w)
+        val row = IntArray(w)
+        for (y in 0 until h step 2) {
+            b.getPixels(row, 0, w, 0, y, w, 1)
+            for (x in 0 until w) { val c = row[x]; col[x] += Color.red(c) * 0.3f + Color.green(c) * 0.59f + Color.blue(c) * 0.11f }
+        }
+        val n = ((h + 1) / 2).toFloat()
+        for (x in 0 until w) col[x] /= n
+        fun smooth(k: Int) = FloatArray(w) { x ->
+            var s = 0f; var c = 0
+            for (j in -k / 2..k / 2) { val q = x + j; if (q in 0 until w) { s += col[q]; c++ } }
+            s / c
+        }
+        val sm = smooth(max(3, (w * 0.02f).toInt()))
+        val base = smooth(max(9, (w * 0.15f).toInt()))
+        val out = ArrayList<String>()
+        var st = -1
+        for (x in 0..w) {
+            val dark = x < w && sm[x] - base[x] < -3f
+            if (dark && st < 0) st = x
+            if (!dark && st >= 0) {
+                if (x - st > w * 0.01f) out += "%.3f-%.3f".format(java.util.Locale.US, st / w.toFloat(), x / w.toFloat())
+                st = -1
+            }
+        }
+        return out.joinToString(",")
+    }
 
     private fun detect(b: Bitmap): Triple<Int, Float, Float>? {
         val w = b.width
@@ -203,6 +239,12 @@ class BeamRenderer(private val ctx: Context) {
         val kMin = floor((cMin - base) / periodS).toInt()
         val kMax = floor((cMax - base) / periodS).toInt()
         if (kMax <= kMin) return
+        // medzery v súradniciach obrazovky
+        val bands = s.beamBands.split(',').mapNotNull { part ->
+            val ab = part.split('-')
+            val a0 = ab.getOrNull(0)?.toFloatOrNull(); val a1 = ab.getOrNull(1)?.toFloatOrNull()
+            if (a0 == null || a1 == null || a1 <= a0) null else Pair(ox + a0 * bw * sc, ox + a1 * bw * sc)
+        }
         val dur = 1.8f
         val cycle = dur + s.beamInterval
         repeat(s.beamCount.coerceIn(1, 3)) { lane ->
@@ -233,11 +275,28 @@ class BeamRenderer(private val ctx: Context) {
             p.shader = LinearGradient(tx, ty, hx, hy, alpha(col, 0f), alpha(Color.WHITE, 0.95f * fade), Shader.TileMode.CLAMP)
             p.strokeWidth = max(2f, periodS * 0.14f)
             c.drawLine(tx, ty, hx, hy, p)
-            // svetlo na čele lúča
-            p.style = Paint.Style.FILL
-            p.shader = RadialGradient(hx, hy, periodS * 1.6f, intArrayOf(alpha(Color.WHITE, 0.9f * fade), alpha(col, 0.5f * fade), alpha(col, 0f)), floatArrayOf(0f, 0.3f, 1f), Shader.TileMode.CLAMP)
-            c.drawCircle(hx, hy, periodS * 1.6f, p)
-            p.shader = null
+            // tmavá 3D medzera sa pri prechode lúča na chvíľu jemne rozsvieti
+            if (s.beamGapGlow) bands.forEach { (bx0, bx1) ->
+                val bw2 = bx1 - bx0
+                val k = when {
+                    hx < bx0 -> 1f - (bx0 - hx) / (bw2 * 0.6f)          // jemný nábeh tesne pred medzerou
+                    hx <= bx1 -> 1f
+                    else -> 1f - (hx - bx1) / (bw2 * 2.5f)              // po prejdení pomaly dohasne
+                }.coerceIn(0f, 1f) * fade
+                if (k > 0.01f) {
+                    val cyB = yOf(((hx).coerceIn(bx0, bx1)))
+                    val span = h * 0.45f
+                    p.style = Paint.Style.FILL
+                    p.shader = LinearGradient(0f, cyB - span, 0f, cyB + span,
+                        intArrayOf(alpha(col, 0f), alpha(col, 0.28f * k), alpha(col, 0f)), floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
+                    c.drawRect(bx0, cyB - span, bx1, cyB + span, p)
+                    // hrana tieňa sa zasvieti trochu viac
+                    p.shader = LinearGradient(0f, cyB - span * 0.6f, 0f, cyB + span * 0.6f,
+                        intArrayOf(alpha(col, 0f), alpha(col, 0.35f * k), alpha(col, 0f)), floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
+                    c.drawRect(bx0, cyB - span * 0.6f, bx0 + max(2f, bw2 * 0.08f), cyB + span * 0.6f, p)
+                    p.shader = null
+                }
+            }
         }
     }
 }

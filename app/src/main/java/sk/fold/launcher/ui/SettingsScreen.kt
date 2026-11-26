@@ -601,6 +601,7 @@ private fun BeamSettings(ui: LauncherUi, s: Settings) {
             contentAlignment = Alignment.Center,
         ) { Text("#", fontWeight = FontWeight.Bold) }
     }
+    SwitchRow("Osvetliť tmavé 3D medzery", "Lúč pri prechode medzerou na chvíľu jemne rozsvieti jej tieň", s.beamGapGlow) { v -> edit { it.copy(beamGapGlow = v) } }
     ChoiceRow("Počet lúčov naraz", listOf(1, 2, 3), s.beamCount, { "$it" }) { v -> edit { it.copy(beamCount = v) } }
     SliderRow("Pauza medzi lúčmi", s.beamInterval, 0f..10f, 9, { "${it.roundToInt()} s" }) { v -> edit { it.copy(beamInterval = v.roundToInt().toFloat()) } }
     SliderRow("Doladenie polohy v drážke", s.beamShift, -0.5f..0.5f, 0, { "%+.2f".format(it) }) { v -> edit { it.copy(beamShift = v) } }

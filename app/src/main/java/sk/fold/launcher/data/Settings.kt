@@ -122,6 +122,9 @@ data class Settings(
     val beamShift: Float = 0f,
     val beamInterval: Float = 3f,
     val beamCount: Int = 1,
+    /** Tmavé zvislé 3D medzery v obrázku („od-do“ ako podiel šírky), ktoré lúč pri prechode jemne osvetlí. */
+    val beamBands: String = "0.682-0.751,0.848-0.916",
+    val beamGapGlow: Boolean = true,
     /** Farba pozadia okien a panelov (priečinky, Váš program) – RGB a priehľadnosť. */
     val popupColor: Long = 0xFF1C1C20,
     val popupAlpha: Float = 0.95f,

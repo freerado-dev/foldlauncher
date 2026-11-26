@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { sk.fold.launcher.wall.BeamImage.importAndDetect(this@MainActivity, uri) }
             if (r != null) {
-                Store.editSettings { it.copy(beamDir = r.first, beamPeriod = r.second, beamPhase = r.third, beamShift = 0f) }
+                Store.editSettings { it.copy(beamDir = r.dir, beamPeriod = r.period, beamPhase = r.phase, beamShift = 0f, beamBands = r.bands) }
                 toast("Obrázok uložený – drážky nájdené")
             } else toast("Obrázok uložený, drážky sa nenašli – doladíš ich posuvníkmi")
             ui?.let { it.resumeTick++ }
