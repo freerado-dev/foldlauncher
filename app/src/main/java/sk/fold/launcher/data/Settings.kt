@@ -113,6 +113,15 @@ data class Settings(
     /** Animovaná tapeta – štýl kruhu a farba (predvolene oranžová). */
     val wallStyle: RingStyle = RingStyle.CLASSIC,
     val wallColor: Long = 0xFFFF7A1A,
+    /** Tapeta s lúčmi: farba, smer drážok (+1 „/“, -1 „\“), rozostup a posun (podiel šírky obrázka). */
+    val beamColor: Long = 0xFFFF7A1A,
+    val beamDir: Int = 1,
+    val beamPeriod: Float = 0.0385f,
+    val beamPhase: Float = 0.0152f,
+    /** jemné doladenie posunu v rámci jedného rozostupu (-0.5..0.5) */
+    val beamShift: Float = 0f,
+    val beamInterval: Float = 3f,
+    val beamCount: Int = 1,
     /** Farba pozadia okien a panelov (priečinky, Váš program) – RGB a priehľadnosť. */
     val popupColor: Long = 0xFF1C1C20,
     val popupAlpha: Float = 0.95f,

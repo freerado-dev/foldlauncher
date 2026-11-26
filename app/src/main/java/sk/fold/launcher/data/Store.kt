@@ -295,7 +295,10 @@ object Store {
         put("animSpeed", s.animSpeed.name); put("drawerSort", s.drawerSort.name)
         put("showRecent", s.showRecent); put("showWork", s.showWork)
         put("favIcon3", s.favIconSize.toDouble()); put("favFolderColor", s.favFolderColor)
-        put("clockApp", s.clockApp); put("weatherApp", s.weatherApp); put("showWeather", s.showWeather); put("showEvents", s.showEvents); put("folderSheet", s.folderSheet); put("feedEnabled", s.feedEnabled); put("launcherTheme", s.launcherTheme.name); put("ringStyle", s.ringStyle.name); put("ringColor", s.ringColor); put("wallStyle", s.wallStyle.name); put("wallColor", s.wallColor); put("popupColor", s.popupColor); put("popupAlpha", s.popupAlpha.toDouble())
+        put("clockApp", s.clockApp); put("weatherApp", s.weatherApp); put("showWeather", s.showWeather); put("showEvents", s.showEvents); put("folderSheet", s.folderSheet); put("feedEnabled", s.feedEnabled); put("launcherTheme", s.launcherTheme.name); put("ringStyle", s.ringStyle.name); put("ringColor", s.ringColor); put("wallStyle", s.wallStyle.name); put("wallColor", s.wallColor);
+        put("beamColor", s.beamColor); put("beamDir", s.beamDir); put("beamPeriod", s.beamPeriod.toDouble())
+        put("beamPhase", s.beamPhase.toDouble()); put("beamShift", s.beamShift.toDouble())
+        put("beamInterval", s.beamInterval.toDouble()); put("beamCount", s.beamCount) put("popupColor", s.popupColor); put("popupAlpha", s.popupAlpha.toDouble())
         put("weatherCity", s.weatherCity); put("weatherF", s.weatherF); put("badgeSize", s.badgeSize.toDouble()); put("assistantKey", s.assistantKey)
         put("floatAssist", s.floatAssist); put("floatSize", s.floatSize.toDouble())
         put("floatCoverX", s.floatCoverX.toDouble()); put("floatCoverY", s.floatCoverY.toDouble())
@@ -370,6 +373,10 @@ object Store {
             ringColor = o.optLong("ringColor", d.ringColor),
             wallStyle = en(o.str("wallStyle"), d.wallStyle),
             wallColor = o.optLong("wallColor", d.wallColor),
+            beamColor = o.optLong("beamColor", d.beamColor), beamDir = o.optInt("beamDir", d.beamDir),
+            beamPeriod = f("beamPeriod", d.beamPeriod), beamPhase = f("beamPhase", d.beamPhase),
+            beamShift = f("beamShift", d.beamShift), beamInterval = f("beamInterval", d.beamInterval),
+            beamCount = o.optInt("beamCount", d.beamCount),
             popupColor = o.optLong("popupColor", d.popupColor),
             popupAlpha = f("popupAlpha", d.popupAlpha),
             weatherCity = o.optString("weatherCity", ""),

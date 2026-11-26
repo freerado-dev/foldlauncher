@@ -64,6 +64,22 @@ class MainActivity : ComponentActivity() {
         ui?.let { it.resumeTick++ }
     }
 
+    private val beamImageLauncher = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri == null) return@registerForActivityResult
+        lifecycleScope.launch {
+            val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { sk.fold.launcher.wall.BeamImage.importAndDetect(this@MainActivity, uri) }
+            if (r != null) {
+                Store.editSettings { it.copy(beamDir = r.first, beamPeriod = r.second, beamPhase = r.third, beamShift = 0f) }
+                toast("Obrázok uložený – drážky nájdené")
+            } else toast("Obrázok uložený, drážky sa nenašli – doladíš ich posuvníkmi")
+            ui?.let { it.resumeTick++ }
+        }
+    }
+
+    fun pickBeamImage() = beamImageLauncher.launch(
+        androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+    )
+
     fun requestCalendar() = calendarLauncher.launch(android.Manifest.permission.READ_CALENDAR)
 
     fun requestLocation() = locationLauncher.launch(android.Manifest.permission.ACCESS_COARSE_LOCATION)

@@ -323,6 +323,7 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                     ChoiceRow("Téma", LauncherTheme.entries, s.launcherTheme, { it.label }) { v -> edit { it.copy(launcherTheme = v) } }
                     RingSettings(s)
                     WallpaperSettings(s)
+                    BeamSettings(ui, s)
                     Text(
                         if (s.holo) "Hologram: tmavomodré sklo, tyrkysové žiarenie a HUD panely. Na plochu si môžeš pridať animovaný Holo kruh (Pridať widget)."
                         else "Štandard: pôvodný vzhľad launchera.",
@@ -564,6 +565,62 @@ private fun WallpaperSettings(s: Settings) {
             ctx.startActivity(android.content.Intent(android.app.WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER)
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
         }
+    }
+}
+
+private val BEAM_COLORS: List<Long> = listOf(
+    0xFFFF7A1A, 0xFFFF453A, 0xFFFFD60A, 0xFF3ED6FF, 0xFF5B8DEF, 0xFFBF5AF2, 0xFF30D158, 0xFFFFFFFF,
+)
+
+/** Tapeta s lúčmi cez drážky vlastného obrázka. */
+@Composable
+private fun BeamSettings(ui: LauncherUi, s: Settings) {
+    val ctx = LocalContext.current
+    val tick = ui.resumeTick
+    val hasImage = remember(tick) { sk.fold.launcher.wall.BeamImage.file(ctx).exists() }
+    var hex by remember { mutableStateOf(false) }
+    Text("Tapeta s lúčmi", Modifier.padding(start = 18.dp, end = 18.dp, top = 14.dp), fontWeight = FontWeight.SemiBold)
+    Text("Tvoj obrázok, cez ktorého šikmé drážky zľava doprava prebiehajú svetelné lúče.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 18.dp))
+    ClickRow(if (hasImage) "Zmeniť obrázok" else "Vybrať obrázok", if (hasImage) "Drážky sa nájdu automaticky" else "Napr. tvoja tapeta s drážkami") {
+        ui.activity.pickBeamImage()
+    }
+    Text("Farba lúča", Modifier.padding(horizontal = 18.dp, vertical = 4.dp))
+    FlowRow(Modifier.padding(horizontal = 14.dp)) {
+        BEAM_COLORS.forEach { c ->
+            Box(
+                Modifier.padding(4.dp).size(34.dp).clip(CircleShape).background(Color(c))
+                    .border(if (c == s.beamColor) 3.dp else 1.dp,
+                        if (c == s.beamColor) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline, CircleShape)
+                    .clickable { edit { it.copy(beamColor = c) } },
+            )
+        }
+        Box(
+            Modifier.padding(4.dp).size(34.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant).clickable { hex = true },
+            contentAlignment = Alignment.Center,
+        ) { Text("#", fontWeight = FontWeight.Bold) }
+    }
+    ChoiceRow("Počet lúčov naraz", listOf(1, 2, 3), s.beamCount, { "$it" }) { v -> edit { it.copy(beamCount = v) } }
+    SliderRow("Pauza medzi lúčmi", s.beamInterval, 0f..10f, 9, { "${it.roundToInt()} s" }) { v -> edit { it.copy(beamInterval = v.roundToInt().toFloat()) } }
+    SliderRow("Doladenie polohy v drážke", s.beamShift, -0.5f..0.5f, 0, { "%+.2f".format(it) }) { v -> edit { it.copy(beamShift = v) } }
+    ChoiceRow("Smer drážok", listOf(1, -1), s.beamDir, { if (it > 0) "/  zľava hore" else "\\  zľava dole" }) { v -> edit { it.copy(beamDir = v) } }
+    ClickRow("Nastaviť ako tapetu", "Lúče cez tvoj obrázok – plocha, zamknutá obrazovka alebo obe") {
+        val cn = android.content.ComponentName(ctx, sk.fold.launcher.wall.BeamWallpaper::class.java)
+        val ok = runCatching {
+            ctx.startActivity(android.content.Intent(android.app.WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER)
+                .putExtra(android.app.WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT, cn)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        }.isSuccess
+        if (!ok) runCatching {
+            ctx.startActivity(android.content.Intent(android.app.WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+    }
+    if (hex) TextDialog("Vlastná farba lúča (HEX)", "#%06X".format(s.beamColor and 0xFFFFFF), "Napr. #00E5FF", onDismiss = { hex = false }) { v ->
+        val c = v.removePrefix("#").toLongOrNull(16)
+        if (c != null && v.removePrefix("#").length == 6) edit { it.copy(beamColor = 0xFF000000 or c) }
+        hex = false
     }
 }
 

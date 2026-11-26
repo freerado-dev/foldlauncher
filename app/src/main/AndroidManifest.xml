@@ -87,6 +87,19 @@
                 android:resource="@xml/holo_wallpaper" />
         </service>
 
+        <service
+            android:name=".wall.BeamWallpaper"
+            android:label="Fold Lúče"
+            android:exported="true"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/beam_wallpaper" />
+        </service>
+
         <receiver
             android:name=".data.LockAdmin"
             android:label="Fold Launcher – zamykanie"
