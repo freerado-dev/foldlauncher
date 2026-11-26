@@ -298,6 +298,23 @@ private fun PopupSurface(content: @Composable () -> Unit) {
     Surface(shape = RoundedCornerShape(28.dp), color = PopupBg, contentColor = PopupText) { content() }
 }
 
+/** Priečinok ako okno alebo ako panel zdola (podľa nastavenia). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FolderContainer(ui: LauncherUi, content: @Composable () -> Unit) {
+    val s by Store.settings.collectAsState()
+    if (s.folderSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { ui.sheet = null },
+            sheetState = rememberModalBottomSheetState(),
+            containerColor = PopupBg,
+            contentColor = PopupText,
+        ) { content() }
+    } else {
+        Dialog(onDismissRequest = { ui.sheet = null }) { PopupSurface { content() } }
+    }
+}
+
 @Composable
 fun FolderDialog(
     ui: LauncherUi, name: String, keys: List<String>,
@@ -306,8 +323,8 @@ fun FolderDialog(
     val apps by Apps.list.collectAsState()
     val s by Store.settings.collectAsState()
     val inside = remember(apps, keys) { keys.mapNotNull { k -> apps.firstOrNull { it.key == k } } }
-    Dialog(onDismissRequest = { ui.sheet = null }) {
-        PopupSurface {
+    FolderContainer(ui) {
+        run {
             Column(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).clickable { onRename() })
@@ -374,8 +391,8 @@ fun FavFolderSheet(ui: LauncherUi, id: String) {
     val subSize = (s.favIconSize * 0.42f).coerceIn(11f, 15f).sp
     val maxH = (LocalConfiguration.current.screenHeightDp * 0.7f).dp
     val ff = LocalFont.current
-    Dialog(onDismissRequest = { ui.sheet = null }) {
-        PopupSurface {
+    FolderContainer(ui) {
+        run {
             Column(Modifier.padding(vertical = 16.dp)) {
                 Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                     FavFolderIcon(28.dp, s)

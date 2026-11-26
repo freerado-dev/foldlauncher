@@ -98,6 +98,8 @@ data class Settings(
     val weatherApp: String = "",
     val showWeather: Boolean = true,
     val showEvents: Boolean = true,
+    /** true = priečinky sa otvárajú ako panel zdola (ako udalosti), false = okno. */
+    val folderSheet: Boolean = false,
     /** Mesto pre počasie ("" = poloha telefónu). */
     val weatherCity: String = "",
     val weatherF: Boolean = false,

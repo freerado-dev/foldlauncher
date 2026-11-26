@@ -337,13 +337,13 @@ private fun DrawerEntry(ui: LauncherUi, e: Entry, s: Settings, list: Boolean, le
         if (list) {
             // Medzera medzi skupinami písmen (A, B, C…), okrem úplne prvej.
             Row(
-                Modifier.padding(top = if (letter != null && letter != firstLetter) 18.dp else 0.dp)
+                Modifier.padding(top = if (letter != null && letter != firstLetter) 30.dp else 0.dp)
                     .then(mod).fillMaxWidth().padding(vertical = 6.dp, horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    letter ?: "", Modifier.width(26.dp), textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 15.sp, fontFamily = ff,
+                    letter ?: "", Modifier.width(36.dp), textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 22.sp, fontFamily = ff,
                 )
                 Box {
                     AppIconImage(e.app, s.drawerIconSize.dp, s)

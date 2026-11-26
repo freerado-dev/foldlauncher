@@ -255,6 +255,9 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                     }
                     SwitchRow("Zobraziť mriežku pri úpravách", checked = s.showGrid) { v -> edit { it.copy(showGrid = v) } }
                     SwitchRow("Zamknúť rozloženie", "Zabráni náhodnému presunu", s.lockLayout) { v -> edit { it.copy(lockLayout = v) } }
+                    ChoiceRow("Otváranie priečinkov", listOf(false, true), s.folderSheet, { if (it) "Panel zdola" else "Okno" }) { v ->
+                        edit { it.copy(folderSheet = v) }
+                    }
                     SwitchRow("Nové aplikácie pridať na plochu", "Po inštalácii sa ikona pridá automaticky", s.autoAddApps) { v -> edit { it.copy(autoAddApps = v) } }
                     ChoiceRow("Efekt listovania stránok", PageEffect.entries, s.pageEffect, { it.label }) { v -> edit { it.copy(pageEffect = v) } }
                     SwitchRow("Indikátor stránok", checked = s.showPageDots) { v -> edit { it.copy(showPageDots = v) } }
