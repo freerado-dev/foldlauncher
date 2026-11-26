@@ -153,7 +153,7 @@ fun WidgetPicker(ui: LauncherUi, screen: Screen) {
                     item { ElementCard("Obľúbené", "Zoznam ako Niagara", Icons.Filled.Star) { ui.sheet = null; ui.addElement(ItemType.FAVORITES) } }
                     item { ElementCard("Priečinok", "Skupina aplikácií", Icons.Filled.Folder) { ui.addElement(ItemType.FOLDER) } }
                     item { ElementCard("Hlasový asistent", "Gemini, Google, Bixby…", Icons.Filled.Mic) { ui.sheet = null; ui.addElement(ItemType.ASSISTANT) } }
-                    item { ElementCard("Plávajúci asistent", "Kamkoľvek, nad všetkým", Icons.Filled.Mic) { ui.sheet = null; Store.editSettings { it.copy(floatAssist = true) } } }
+                    item { ElementCard("Plávajúci asistent", "Kamkoľvek, nad všetkým", Icons.Filled.Mic) { ui.sheet = null; ui.enableFloatingAssistant() } }
                 }
             }
             val g = groups

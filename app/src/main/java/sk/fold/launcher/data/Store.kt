@@ -255,6 +255,7 @@ object Store {
         put("floatAssist", s.floatAssist); put("floatSize", s.floatSize.toDouble())
         put("floatCoverX", s.floatCoverX.toDouble()); put("floatCoverY", s.floatCoverY.toDouble())
         put("floatInnerX", s.floatInnerX.toDouble()); put("floatInnerY", s.floatInnerY.toDouble())
+        put("floatAllPages", s.floatAllPages); put("floatCoverPage", s.floatCoverPage); put("floatInnerPage", s.floatInnerPage)
         put("favFolders", JSONObject().apply {
             s.favFolders.forEach { (k, f) -> put(k, JSONObject().put("name", f.name).put("apps", JSONArray(f.apps))) }
         })
@@ -320,6 +321,8 @@ object Store {
             floatSize = f("floatSize", d.floatSize),
             floatCoverX = f("floatCoverX", d.floatCoverX), floatCoverY = f("floatCoverY", d.floatCoverY),
             floatInnerX = f("floatInnerX", d.floatInnerX), floatInnerY = f("floatInnerY", d.floatInnerY),
+            floatAllPages = o.optBoolean("floatAllPages", d.floatAllPages),
+            floatCoverPage = o.optInt("floatCoverPage", 0), floatInnerPage = o.optInt("floatInnerPage", 0),
             favFolders = o.optJSONObject("favFolders")?.let { ff ->
                 ff.keys().asSequence().mapNotNull { k ->
                     val fo = ff.optJSONObject(k) ?: return@mapNotNull null

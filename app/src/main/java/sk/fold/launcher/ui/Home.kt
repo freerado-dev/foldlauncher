@@ -177,7 +177,16 @@ fun HomeScreen(ui: LauncherUi, screen: Screen, layout: ScreenLayout, s: Settings
                 HomePage(ui, screen, layout, page, s) { dragging = it }
             }
         }
-        if (s.floatAssist) FloatingAssistant(ui, screen, s, constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat())
+        if (s.floatAssist) {
+            val fp = (if (screen == Screen.COVER) s.floatCoverPage else s.floatInnerPage).coerceIn(0, layout.pages - 1)
+            val w = constraints.maxWidth.toFloat()
+            // Len na jednej stránke: tlačidlo sa posúva spolu so stránkou pri listovaní.
+            Box(Modifier.fillMaxSize().graphicsLayer {
+                if (!s.floatAllPages) translationX = (fp - pager.currentPage - pager.currentPageOffsetFraction) * w
+            }) {
+                FloatingAssistant(ui, screen, s, w, constraints.maxHeight.toFloat())
+            }
+        }
         if (layout.pages > 1 && s.showPageDots) Box(Modifier.align(Alignment.BottomCenter)) { PageDots(layout.pages, pager.currentPage) }
         if (ui.editMode) {
             Box(Modifier.align(Alignment.TopCenter)) { SelectionBar(ui, screen, layout, s) }
@@ -237,6 +246,14 @@ private fun FloatingAssistant(ui: LauncherUi, screen: Screen, s: Settings, areaW
         AssistantIcon(s.floatSize.dp)
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             HomeMenuItem("Vybrať asistenta", Icons.Filled.Mic) { menu = false; ui.sheet = Sheet.AssistantSettings }
+            HomeMenuItem(if (s.floatAllPages) "Len na tejto stránke" else "Na všetkých stránkach", Icons.Filled.Widgets) {
+                menu = false
+                Store.editSettings {
+                    val p = ui.page
+                    val n = it.copy(floatAllPages = !it.floatAllPages)
+                    if (screen == Screen.COVER) n.copy(floatCoverPage = p) else n.copy(floatInnerPage = p)
+                }
+            }
             HomeMenuItem("Väčšie", Icons.Filled.Add) { Store.editSettings { it.copy(floatSize = (it.floatSize + 8f).coerceAtMost(112f)) } }
             HomeMenuItem("Menšie", Icons.Filled.Remove) { Store.editSettings { it.copy(floatSize = (it.floatSize - 8f).coerceAtLeast(32f)) } }
             HomeMenuItem("Vrátiť do mriežky", Icons.Filled.Apps) {

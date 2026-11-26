@@ -95,7 +95,7 @@ fun ItemMenu(ui: LauncherUi, item: HomeItem, dismiss: () -> Unit) {
             MenuRow("Voľne umiestniť (mimo mriežky)", Icons.Filled.OpenWith) {
                 dismiss()
                 ui.remove(item)
-                Store.editSettings { it.copy(floatAssist = true) }
+                ui.enableFloatingAssistant()
                 ui.activity.toast("Tlačidlo môžeš podržať a presunúť kamkoľvek")
             }
             MenuRow(if (hidden) "Zobraziť popis" else "Len ikona (bez popisu)", Icons.Filled.Edit) {

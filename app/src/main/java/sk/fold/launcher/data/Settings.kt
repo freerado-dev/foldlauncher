@@ -108,4 +108,7 @@ data class Settings(
     val floatSize: Float = 56f,
     val floatCoverX: Float = 0.85f, val floatCoverY: Float = 0.8f,
     val floatInnerX: Float = 0.9f, val floatInnerY: Float = 0.8f,
+    /** false = len na jednej stránke plochy (floatCoverPage / floatInnerPage). */
+    val floatAllPages: Boolean = false,
+    val floatCoverPage: Int = 0, val floatInnerPage: Int = 0,
 )
