@@ -180,11 +180,12 @@ fun HomeScreen(ui: LauncherUi, screen: Screen, layout: ScreenLayout, s: Settings
         if (s.floatAssist) {
             val fp = (if (screen == Screen.COVER) s.floatCoverPage else s.floatInnerPage).coerceIn(0, layout.pages - 1)
             val w = constraints.maxWidth.toFloat()
+            val hArea = constraints.maxHeight.toFloat()
             // Len na jednej stránke: tlačidlo sa posúva spolu so stránkou pri listovaní.
             Box(Modifier.fillMaxSize().graphicsLayer {
                 if (!s.floatAllPages) translationX = (fp - pager.currentPage - pager.currentPageOffsetFraction) * w
             }) {
-                FloatingAssistant(ui, screen, s, w, constraints.maxHeight.toFloat())
+                FloatingAssistant(ui, screen, s, w, hArea)
             }
         }
         if (layout.pages > 1 && s.showPageDots) Box(Modifier.align(Alignment.BottomCenter)) { PageDots(layout.pages, pager.currentPage) }
