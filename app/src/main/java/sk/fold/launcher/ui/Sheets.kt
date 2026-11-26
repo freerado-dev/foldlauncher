@@ -456,7 +456,7 @@ fun AgendaSheet(ui: LauncherUi) {
     ModalBottomSheet(
         onDismissRequest = { ui.sheet = null },
         sheetState = rememberModalBottomSheetState(),
-        containerColor = Color(0xFF14142A),
+        containerColor = PopupBg,
         contentColor = PopupText,
     ) {
         Text("Váš program", fontSize = 22.sp, modifier = Modifier.padding(start = 24.dp, bottom = 8.dp))

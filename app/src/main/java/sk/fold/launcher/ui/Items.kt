@@ -340,7 +340,7 @@ private fun WeatherChip(ui: LauncherUi, s: Settings, textSize: TextUnit, iconSiz
 
 /** Najbližšia udalosť z kalendára pod dátumom – ťuknutím sa otvorí „Váš program“. */
 @Composable
-private fun EventLine(ui: LauncherUi, s: Settings, textSize: TextUnit, refreshKey: Long) {
+private fun EventLine(ui: LauncherUi, s: Settings, textSize: TextUnit, refreshKey: Long, gap: Dp = 0.dp) {
     if (!s.showEvents) return
     val ctx = LocalContext.current
     val tick = ui.resumeTick
@@ -359,6 +359,8 @@ private fun EventLine(ui: LauncherUi, s: Settings, textSize: TextUnit, refreshKe
         return
     }
     val e = next ?: return
+    // Rovnaký vizuálny odstup ako medzi časom a dátumom.
+    if (gap > 0.dp) Spacer(Modifier.height(gap))
     val rel = Agenda.relative(e.day)
     val time = if (!e.allDay && rel == "dnes") " · " + SimpleDateFormat("H:mm", Locale.getDefault()).format(Date(e.begin)) else ""
     Text(
@@ -400,7 +402,7 @@ private fun ClockView(ui: LauncherUi, s: Settings, wDp: Dp, hDp: Dp) {
                         WeatherChip(ui, s, sp(small), small * 1.1f)
                     }
                 }
-                EventLine(ui, s, sp(small), refreshKey)
+                EventLine(ui, s, sp(small), refreshKey, gap = tSize * 0.22f)
             }
         }
         ClockStyle.STACKED -> Box(Modifier.fillMaxSize().padding(horizontal = 6.dp), contentAlignment = Alignment.CenterStart) {
@@ -414,7 +416,7 @@ private fun ClockView(ui: LauncherUi, s: Settings, wDp: Dp, hDp: Dp) {
                     if (s.clockDate) Text(date, style = labelStyle(s, sp(small)), fontFamily = ff, maxLines = 1)
                 }
                 if (s.showWeather) WeatherChip(ui, s, sp(small), small * 1.1f)
-                EventLine(ui, s, sp(small), refreshKey)
+                EventLine(ui, s, sp(small), refreshKey, gap = small * 0.6f)
             }
         }
         // Malé: čas v ľavom hornom rohu, počasie hneď vedľa, pod tým dátum a udalosť.
@@ -431,7 +433,7 @@ private fun ClockView(ui: LauncherUi, s: Settings, wDp: Dp, hDp: Dp) {
                     }
                 }
                 if (s.clockDate) Text(date, style = labelStyle(s, sp(small)), fontFamily = ff, maxLines = 1, modifier = clockClick)
-                EventLine(ui, s, sp(small), refreshKey)
+                EventLine(ui, s, sp(small), refreshKey, gap = tSize * 0.22f)
             }
         }
     }
