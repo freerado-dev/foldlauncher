@@ -397,6 +397,7 @@ fun FolderDialog(
                                 DropdownMenuItem(text = { Text("Informácie o aplikácii") }, onClick = { menu = false; Apps.details(ui.activity, a) })
                             }
                         }
+                    }
                 }
             }
         }
