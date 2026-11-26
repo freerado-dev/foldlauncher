@@ -203,8 +203,9 @@ object Apps {
         val gIcon = runCatching { pm.getApplicationIcon(g) }.getOrNull()
         if (gIcon != null) {
             listOf(
+                // Overené na Z Folde: rovnaké ako dlhé podržanie tlačidla vypnutia (hneď počúva).
+                "android.speech.action.VOICE_SEARCH_HANDS_FREE" to "Gemini – hneď počúvať (ako tlačidlo vypnutia)",
                 "android.intent.action.VOICE_ASSIST" to "Gemini – hlasový povel (VOICE_ASSIST)",
-                "android.speech.action.VOICE_SEARCH_HANDS_FREE" to "Gemini – počúvanie hands-free",
                 Intent.ACTION_VOICE_COMMAND to "Gemini – hlasový príkaz",
                 "android.speech.action.WEB_SEARCH" to "Google – hlasové vyhľadávanie",
                 Intent.ACTION_ASSIST to "Gemini – panel asistenta",

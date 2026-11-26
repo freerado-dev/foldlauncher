@@ -32,3 +32,9 @@ Po inštalácii: Nastavenia launchera → **Nastaviť ako predvolený**.
 ## Povolenia (voliteľné)
 - **Prístup k notifikáciám** – odznaky a text v obľúbených.
 - **Dostupnosť „Fold Launcher – gestá“** – zamknutie obrazovky dvojitým ťuknutím.
+
+## Hlasový asistent
+Tlačidlo asistenta na plochu: podrž plochu → Pridať widget → Hlasový asistent.
+Možnosť **„Gemini – hneď počúvať (ako tlačidlo vypnutia)“** (intent `android.speech.action.VOICE_SEARCH_HANDS_FREE`
+do balíka `com.google.android.googlequicksearchbox`) sa na Galaxy Z Fold správa presne ako dlhé podržanie tlačidla vypnutia –
+Gemini hneď počúva hlasový povel.
