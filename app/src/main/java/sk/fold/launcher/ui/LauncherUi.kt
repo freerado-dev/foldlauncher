@@ -33,6 +33,7 @@ sealed interface Sheet {
     data class Rename(val key: String) : Sheet
     data class RenameItem(val id: Long) : Sheet
     data object RemovePage : Sheet
+    data object ClockSettings : Sheet
     data class FavFolder(val id: String) : Sheet
     data class FavFolderApps(val id: String) : Sheet
     data class RenameFavFolder(val id: String) : Sheet
@@ -155,11 +156,29 @@ class LauncherUi(val activity: MainActivity) {
                 if (u != null && item.pkg != null && item.shortcutId != null) Apps.startShortcut(activity, item.pkg, item.shortcutId, u)
             }
             ItemType.FOLDER -> sheet = Sheet.Folder(item.id)
-            ItemType.CLOCK -> runCatching {
-                activity.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            }
+            ItemType.CLOCK -> openClock()
             ItemType.SEARCH -> openDrawer(search = true)
             else -> {}
+        }
+    }
+
+    fun openClock() {
+        val a = Apps.find(Store.settings.value.clockApp)
+        if (a != null) Apps.launch(activity, a)
+        else runCatching {
+            activity.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+    }
+
+    fun openWeather() {
+        val s = Store.settings.value
+        val a = Apps.find(s.weatherApp)
+        if (a != null) { Apps.launch(activity, a); return }
+        val place = sk.fold.launcher.data.Weather.state.value?.place?.takeIf { it.isNotBlank() } ?: s.weatherCity
+        val q = android.net.Uri.encode("počasie $place".trim())
+        runCatching {
+            activity.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/search?q=$q"))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
     }
 

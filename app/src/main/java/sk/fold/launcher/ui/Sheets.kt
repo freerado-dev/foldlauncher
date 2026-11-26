@@ -67,6 +67,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -215,7 +216,10 @@ private fun WidgetCard(info: AppWidgetProviderInfo, screen: Screen, onClick: () 
 // ---------------- výber aplikácií ----------------
 
 @Composable
-fun AppPicker(title: String, initial: List<String>, onClose: () -> Unit, onDone: (List<String>) -> Unit) {
+fun AppPicker(
+    title: String, initial: List<String>, onClose: () -> Unit,
+    single: Boolean = false, onDone: (List<String>) -> Unit,
+) {
     val apps by Apps.list.collectAsState()
     val s by Store.settings.collectAsState()
     val selected = remember { mutableStateListOf<String>().apply { addAll(initial) } }
@@ -226,7 +230,8 @@ fun AppPicker(title: String, initial: List<String>, onClose: () -> Unit, onDone:
     }
     val shown = remember(sorted, q) { if (q.isBlank()) sorted else sorted.filter { norm(it.second).contains(norm(q)) } }
     FullSheet(title, onClose = onClose, actions = {
-        TextButton(onClick = { onDone(selected.toList()) }) { Text("Hotovo (${selected.size})") }
+        if (single) TextButton(onClick = { onDone(emptyList()) }) { Text("Predvolené") }
+        else TextButton(onClick = { onDone(selected.toList()) }) { Text("Hotovo (${selected.size})") }
     }) {
         OutlinedTextField(
             value = q, onValueChange = { q = it }, singleLine = true,
@@ -238,14 +243,17 @@ fun AppPicker(title: String, initial: List<String>, onClose: () -> Unit, onDone:
             items(shown, key = { it.first.key }) { (a, label) ->
                 val on = a.key in selected
                 Row(
-                    Modifier.fillMaxWidth().clickable { if (on) selected.remove(a.key) else selected.add(a.key) }
+                    Modifier.fillMaxWidth().clickable {
+                        if (single) onDone(listOf(a.key)) else if (on) selected.remove(a.key) else selected.add(a.key)
+                    }
                         .padding(horizontal = 16.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     AppIconImage(a, 36.dp, s)
                     Spacer(Modifier.width(14.dp))
                     Text(label, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Checkbox(checked = on, onCheckedChange = { if (on) selected.remove(a.key) else selected.add(a.key) })
+                    if (single) RadioButton(selected = on, onClick = { onDone(listOf(a.key)) })
+                    else Checkbox(checked = on, onCheckedChange = { if (on) selected.remove(a.key) else selected.add(a.key) })
                 }
             }
         }
@@ -569,6 +577,7 @@ fun SheetHost(ui: LauncherUi, screen: Screen, s: Settings) {
         }
         Sheet.Settings -> SettingsScreen(ui, screen) { ui.sheet = null }
         Sheet.Favorites -> FavoritesEditor(ui) { ui.sheet = null }
+        Sheet.ClockSettings -> ClockSettingsPage(ui) { ui.sheet = null }
         is Sheet.FavFolder -> FavFolderSheet(ui, sh.id)
         is Sheet.FavFolderApps -> AppPicker("Obsah priečinka", s.favFolders[sh.id]?.apps ?: emptyList(), onClose = { ui.sheet = Sheet.FavFolder(sh.id) }) { keys ->
             editFavFolder(sh.id) { it.copy(apps = keys) }

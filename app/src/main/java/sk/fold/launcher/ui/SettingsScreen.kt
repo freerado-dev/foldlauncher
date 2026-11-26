@@ -77,6 +77,7 @@ import sk.fold.launcher.data.ThemeMode
 import sk.fold.launcher.data.Widgets
 import sk.fold.launcher.data.labelOf
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 @Composable
 fun SectionTitle(t: String) {
@@ -156,6 +157,7 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
         "fav" -> { FavoritesEditor(ui) { sub = null }; return }
         "hidden" -> { HiddenApps { sub = null }; return }
         "pack" -> { IconPackPicker { sub = null }; return }
+        "clock" -> { ClockSettingsPage(ui) { sub = null }; return }
     }
     val s by Store.settings.collectAsState()
     val cover by Store.layout(Screen.COVER).collectAsState()
@@ -268,9 +270,7 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
                     ClickRow("Zmeniť tapetu") {
                         runCatching { act.startActivity(Intent.createChooser(Intent(Intent.ACTION_SET_WALLPAPER), "Tapeta")) }
                     }
-                    ChoiceRow("Štýl hodín", ClockStyle.entries, s.clockStyle, { it.label }) { v -> edit { it.copy(clockStyle = v) } }
-                    SwitchRow("24-hodinový čas", checked = s.clock24) { v -> edit { it.copy(clock24 = v) } }
-                    SwitchRow("Dátum pod hodinami", checked = s.clockDate) { v -> edit { it.copy(clockDate = v) } }
+                    ClickRow("Hodiny a počasie", "Štýl, počasie, aplikácie po ťuknutí") { sub = "clock" }
                 }
             }
 
@@ -518,5 +518,75 @@ private fun PackRow(label: String, selected: Boolean, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         RadioButton(selected = selected, onClick = onClick)
         Text(label)
+    }
+}
+
+
+/** Nastavenia widgetu hodín: štýl, počasie a aplikácie, ktoré sa otvoria po ťuknutí. */
+@Composable
+fun ClockSettingsPage(ui: LauncherUi, onClose: () -> Unit) {
+    val s by Store.settings.collectAsState()
+    val w by sk.fold.launcher.data.Weather.state.collectAsState()
+    val err by sk.fold.launcher.data.Weather.error.collectAsState()
+    val apps by Apps.list.collectAsState()
+    val ctx = LocalContext.current
+    val act = ui.activity
+    val tick = ui.resumeTick
+    val locOk = remember(tick) { sk.fold.launcher.data.Weather.hasLocationPermission(ctx) }
+    var picking by remember { mutableStateOf<String?>(null) }
+    var cityDialog by remember { mutableStateOf(false) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    BackHandler { if (picking != null) picking = null else onClose() }
+
+    picking?.let { which ->
+        AppPicker(
+            if (which == "clock") "Aplikácia pre čas a dátum" else "Aplikácia pre počasie",
+            listOfNotNull((if (which == "clock") s.clockApp else s.weatherApp).ifEmpty { null }),
+            onClose = { picking = null }, single = true,
+        ) { keys ->
+            val k = keys.firstOrNull() ?: ""
+            edit { if (which == "clock") it.copy(clockApp = k) else it.copy(weatherApp = k) }
+            picking = null
+        }
+        return
+    }
+    fun appName(k: String) = apps.firstOrNull { it.key == k }?.let { labelOf(it, s) }
+
+    FullSheet("Hodiny a počasie", onClose = onClose) {
+        LazyColumn(Modifier.fillMaxSize()) {
+            item { SectionTitle("Hodiny") }
+            item {
+                Group {
+                    ChoiceRow("Štýl", ClockStyle.entries, s.clockStyle, { it.label }) { v -> edit { it.copy(clockStyle = v) } }
+                    SwitchRow("24-hodinový čas", checked = s.clock24) { v -> edit { it.copy(clock24 = v) } }
+                    SwitchRow("Dátum", checked = s.clockDate) { v -> edit { it.copy(clockDate = v) } }
+                    ClickRow("Ťuknutie na čas a dátum otvorí", appName(s.clockApp) ?: "Budíky (predvolené)") { picking = "clock" }
+                }
+            }
+            item { SectionTitle("Počasie") }
+            item {
+                Group {
+                    SwitchRow("Zobraziť počasie", "Aktuálna teplota z Open-Meteo", s.showWeather) { v -> edit { it.copy(showWeather = v) } }
+                    ClickRow(
+                        "Miesto",
+                        if (s.weatherCity.isNotBlank()) s.weatherCity
+                        else if (locOk) "Poloha telefónu" else "Poloha telefónu – nie je povolená (ťukni)",
+                    ) { if (s.weatherCity.isBlank() && !locOk) act.requestLocation() else cityDialog = true }
+                    if (s.weatherCity.isBlank() && locOk) ClickRow("Zadať mesto ručne") { cityDialog = true }
+                    SwitchRow("Stupne Fahrenheita", checked = s.weatherF) { v -> edit { it.copy(weatherF = v) } }
+                    ClickRow("Ťuknutie na počasie otvorí", appName(s.weatherApp) ?: "Predpoveď na webe (predvolené)") { picking = "weather" }
+                    ClickRow(
+                        "Stav",
+                        err ?: w?.let { "${it.temp}°" + (if (it.place.isNotBlank()) " · ${it.place}" else "") + " · ťukni pre obnovenie" }
+                            ?: "Načítavam… (ťukni pre obnovenie)",
+                    ) { scope.launch { sk.fold.launcher.data.Weather.refresh(ctx, force = true) } }
+                }
+            }
+        }
+    }
+    if (cityDialog) TextDialog("Mesto pre počasie", s.weatherCity, "Prázdne = poloha telefónu", onDismiss = { cityDialog = false }) { v ->
+        edit { it.copy(weatherCity = v) }
+        cityDialog = false
+        if (v.isBlank() && !sk.fold.launcher.data.Weather.hasLocationPermission(ctx)) act.requestLocation()
     }
 }

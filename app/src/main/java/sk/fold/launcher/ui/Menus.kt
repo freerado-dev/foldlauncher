@@ -37,7 +37,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import sk.fold.launcher.data.AppInfo
 import sk.fold.launcher.data.Apps
-import sk.fold.launcher.data.ClockStyle
 import sk.fold.launcher.data.HomeItem
 import sk.fold.launcher.data.IconCache
 import sk.fold.launcher.data.ItemType
@@ -88,13 +87,7 @@ fun ItemMenu(ui: LauncherUi, item: HomeItem, dismiss: () -> Unit) {
     when (item.type) {
         ItemType.FOLDER -> MenuRow("Upraviť obsah", Icons.Filled.Apps) { dismiss(); ui.sheet = Sheet.FolderApps(item.id) }
         ItemType.FAVORITES -> MenuRow("Upraviť obľúbené", Icons.Filled.Star) { dismiss(); ui.sheet = Sheet.Favorites }
-        ItemType.CLOCK -> {
-            val cur = Store.settings.value.clockStyle
-            val next = ClockStyle.entries[(cur.ordinal + 1) % ClockStyle.entries.size]
-            MenuRow("Štýl hodín: ${next.label}", Icons.Filled.Schedule) {
-                Store.editSettings { it.copy(clockStyle = next) }; dismiss()
-            }
-        }
+        ItemType.CLOCK -> MenuRow("Nastavenia hodín a počasia", Icons.Filled.Schedule) { dismiss(); ui.sheet = Sheet.ClockSettings }
         else -> {}
     }
     if (item.type == ItemType.APP || item.type == ItemType.FOLDER || item.type == ItemType.SHORTCUT)

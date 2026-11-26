@@ -92,4 +92,12 @@ data class Settings(
     val favFolders: Map<String, FavFolder> = emptyMap(),
     val favIconSize: Float = 30f,
     val favFolderColor: Long = 0xFF5B8DEF,
+    /** Aplikácia po ťuknutí na čas/dátum ("" = budíky). */
+    val clockApp: String = "",
+    /** Aplikácia po ťuknutí na počasie ("" = predpoveď na webe). */
+    val weatherApp: String = "",
+    val showWeather: Boolean = true,
+    /** Mesto pre počasie ("" = poloha telefónu). */
+    val weatherCity: String = "",
+    val weatherF: Boolean = false,
 )

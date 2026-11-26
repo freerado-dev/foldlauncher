@@ -21,7 +21,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Dehaze
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Thunderstorm
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.WbCloudy
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Icon
@@ -78,6 +87,7 @@ import sk.fold.launcher.data.ItemType
 import sk.fold.launcher.data.LauncherWidgetView
 import sk.fold.launcher.data.Settings
 import sk.fold.launcher.data.Store
+import sk.fold.launcher.data.Weather
 import sk.fold.launcher.data.Widgets
 import sk.fold.launcher.data.labelOf
 import java.text.SimpleDateFormat
@@ -156,7 +166,7 @@ fun ItemContent(ui: LauncherUi, item: HomeItem, s: Settings, wDp: Dp, hDp: Dp, d
             IconTile(item.label ?: "Priečinok", s, wDp, hDp, count) { sz -> FolderIcon(item, sz, s) }
         }
         ItemType.WIDGET -> WidgetBox(ui, item, wDp, hDp, drag)
-        ItemType.CLOCK -> ClockView(s, wDp, hDp)
+        ItemType.CLOCK -> ClockView(ui, s, wDp, hDp)
         ItemType.FAVORITES -> FavoritesView(ui, s, hDp)
         ItemType.SEARCH -> {}
     }
@@ -258,8 +268,43 @@ private fun WidgetBox(ui: LauncherUi, item: HomeItem, wDp: Dp, hDp: Dp, drag: Wi
     LaunchedEffect(view, wDp, hDp) { Widgets.updateSize(view, wDp.value, hDp.value) }
 }
 
+fun weatherIcon(code: Int, day: Boolean): ImageVector = when (code) {
+    0, 1 -> if (day) Icons.Filled.WbSunny else Icons.Filled.Bedtime
+    2 -> if (day) Icons.Filled.WbCloudy else Icons.Filled.Cloud
+    3 -> Icons.Filled.Cloud
+    45, 48 -> Icons.Filled.Dehaze
+    in 51..67, in 80..82 -> Icons.Filled.WaterDrop
+    in 71..77, 85, 86 -> Icons.Filled.AcUnit
+    in 95..99 -> Icons.Filled.Thunderstorm
+    else -> Icons.Filled.Cloud
+}
+
+/** Počasie vedľa hodín – ikona a teplota, ťuknutím otvorí zvolenú aplikáciu. */
 @Composable
-private fun ClockView(s: Settings, wDp: Dp, hDp: Dp) {
+private fun WeatherChip(ui: LauncherUi, s: Settings, textSize: TextUnit, iconSize: Dp) {
+    val w by Weather.state.collectAsState()
+    val ctx = LocalContext.current
+    LaunchedEffect(s.showWeather, s.weatherCity, s.weatherF) {
+        if (!s.showWeather) return@LaunchedEffect
+        Weather.refresh(ctx, force = true)
+        while (true) {
+            delay(15 * 60 * 1000L)
+            Weather.refresh(ctx)
+        }
+    }
+    val now = w ?: return
+    Row(
+        Modifier.clip(RoundedCornerShape(12.dp)).clickable { ui.openWeather() }.padding(horizontal = 4.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(weatherIcon(now.code, now.isDay), null, tint = Color.White, modifier = Modifier.size(iconSize))
+        Spacer(Modifier.width(4.dp))
+        Text("${now.temp}°", style = labelStyle(s, textSize), fontFamily = LocalFont.current, maxLines = 1)
+    }
+}
+
+@Composable
+private fun ClockView(ui: LauncherUi, s: Settings, wDp: Dp, hDp: Dp) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -272,26 +317,47 @@ private fun ClockView(s: Settings, wDp: Dp, hDp: Dp) {
     val time = remember(now, s.clock24) { SimpleDateFormat(if (s.clock24) "HH:mm" else "h:mm", Locale.getDefault()).format(Date(now)) }
     val date = remember(now / 60000) { SimpleDateFormat("EEEE d. MMMM", Locale.getDefault()).format(Date(now)).replaceFirstChar { it.uppercase() } }
     fun sp(d: Dp) = with(density) { d.toSp() }
+    // Ťuknutie na čas a dátum otvorí zvolenú aplikáciu; počasie má vlastnú.
+    val clockClick = Modifier.clip(RoundedCornerShape(12.dp)).clickable { ui.openClock() }
     Box(Modifier.fillMaxSize().padding(horizontal = 6.dp), contentAlignment = Alignment.CenterStart) {
         when (s.clockStyle) {
             ClockStyle.LARGE -> Column {
-                val tSize = minOf(if (s.clockDate) hDp * 0.6f else hDp * 0.82f, wDp * 0.3f)
-                Text(time, style = labelStyle(s, sp(tSize)), fontWeight = FontWeight.Light, fontFamily = ff, maxLines = 1)
-                if (s.clockDate) Text(date, style = labelStyle(s, sp(minOf(hDp * 0.14f, 22.dp))), fontFamily = ff, maxLines = 1)
+                val tSize = minOf(if (s.clockDate || s.showWeather) hDp * 0.58f else hDp * 0.82f, wDp * 0.3f)
+                val small = minOf(hDp * 0.14f, 22.dp)
+                Column(clockClick) {
+                    Text(time, style = labelStyle(s, sp(tSize)), fontWeight = FontWeight.Light, fontFamily = ff, maxLines = 1)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (s.clockDate) Text(date, style = labelStyle(s, sp(small)), fontFamily = ff, maxLines = 1, modifier = clockClick)
+                    if (s.showWeather) {
+                        Spacer(Modifier.width(10.dp))
+                        WeatherChip(ui, s, sp(small), small * 1.1f)
+                    }
+                }
             }
             ClockStyle.STACKED -> Column {
                 val parts = time.split(":")
-                val tSize = minOf(if (s.clockDate) hDp * 0.36f else hDp * 0.44f, wDp * 0.5f)
-                Text(parts.getOrElse(0) { "" }, style = labelStyle(s, sp(tSize)), fontWeight = FontWeight.Bold, fontFamily = ff, lineHeight = sp(tSize))
-                Text(parts.getOrElse(1) { "" }, style = labelStyle(s, sp(tSize), MaterialTheme.colorScheme.primary), fontWeight = FontWeight.Bold, fontFamily = ff, lineHeight = sp(tSize))
-                if (s.clockDate) Text(date, style = labelStyle(s, sp(minOf(hDp * 0.11f, 18.dp))), fontFamily = ff, maxLines = 1)
+                val tSize = minOf(if (s.clockDate || s.showWeather) hDp * 0.33f else hDp * 0.44f, wDp * 0.5f)
+                val small = minOf(hDp * 0.1f, 18.dp)
+                Column(clockClick) {
+                    Text(parts.getOrElse(0) { "" }, style = labelStyle(s, sp(tSize)), fontWeight = FontWeight.Bold, fontFamily = ff, lineHeight = sp(tSize))
+                    Text(parts.getOrElse(1) { "" }, style = labelStyle(s, sp(tSize), MaterialTheme.colorScheme.primary), fontWeight = FontWeight.Bold, fontFamily = ff, lineHeight = sp(tSize))
+                    if (s.clockDate) Text(date, style = labelStyle(s, sp(small)), fontFamily = ff, maxLines = 1)
+                }
+                if (s.showWeather) WeatherChip(ui, s, sp(small), small * 1.1f)
             }
             ClockStyle.MINIMAL -> Row(verticalAlignment = Alignment.CenterVertically) {
                 val tSize = minOf(hDp * 0.5f, wDp * 0.16f)
-                Text(time, style = labelStyle(s, sp(tSize)), fontWeight = FontWeight.Medium, fontFamily = ff)
-                if (s.clockDate) {
+                Row(clockClick, verticalAlignment = Alignment.CenterVertically) {
+                    Text(time, style = labelStyle(s, sp(tSize)), fontWeight = FontWeight.Medium, fontFamily = ff)
+                    if (s.clockDate) {
+                        Spacer(Modifier.width(10.dp))
+                        Text(date, style = labelStyle(s, sp(tSize * 0.42f)), fontFamily = ff, maxLines = 2)
+                    }
+                }
+                if (s.showWeather) {
                     Spacer(Modifier.width(10.dp))
-                    Text(date, style = labelStyle(s, sp(tSize * 0.42f)), fontFamily = ff, maxLines = 2)
+                    WeatherChip(ui, s, sp(tSize * 0.5f), tSize * 0.5f)
                 }
             }
         }

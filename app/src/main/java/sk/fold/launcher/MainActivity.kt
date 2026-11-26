@@ -16,6 +16,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import sk.fold.launcher.data.HomeItem
 import sk.fold.launcher.data.ItemType
 import sk.fold.launcher.data.Store
@@ -49,6 +51,14 @@ class MainActivity : ComponentActivity() {
             else { old.forEach { Widgets.delete(it) }; toast("Obnovené (widgety treba pridať znova)") }
         }
     }
+
+    private val locationLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) lifecycleScope.launch { sk.fold.launcher.data.Weather.refresh(this@MainActivity, force = true) }
+        else toast("Bez polohy zadaj mesto v nastaveniach hodín")
+        ui?.let { it.resumeTick++ }
+    }
+
+    fun requestLocation() = locationLauncher.launch(android.Manifest.permission.ACCESS_COARSE_LOCATION)
 
     private val roleLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         ui?.resumeTick = (ui?.resumeTick ?: 0) + 1
