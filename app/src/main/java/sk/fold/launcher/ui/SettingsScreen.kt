@@ -578,13 +578,21 @@ private fun BeamSettings(ui: LauncherUi, s: Settings) {
     val ctx = LocalContext.current
     val tick = ui.resumeTick
     val hasImage = remember(tick) { sk.fold.launcher.wall.BeamImage.file(ctx).exists() }
+    val hasLand = remember(tick) { sk.fold.launcher.wall.BeamImage.fileLand(ctx).exists() }
     var hex by remember { mutableStateOf(false) }
     Text("Tapeta s lúčmi", Modifier.padding(start = 18.dp, end = 18.dp, top = 14.dp), fontWeight = FontWeight.SemiBold)
     Text("Tvoj obrázok, cez ktorého šikmé drážky zľava doprava prebiehajú svetelné lúče.",
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 18.dp))
-    ClickRow(if (hasImage) "Zmeniť obrázok" else "Vybrať obrázok", if (hasImage) "Drážky sa nájdu automaticky" else "Napr. tvoja tapeta s drážkami") {
-        ui.activity.pickBeamImage()
+    ClickRow(if (hasImage) "Obrázok na výšku – zmeniť" else "Obrázok na výšku – vybrať", "Drážky a medzery sa nájdu automaticky") {
+        ui.activity.pickBeamImage(land = false)
+    }
+    ClickRow(if (hasLand) "Obrázok na šírku – zmeniť" else "Obrázok na šírku – vybrať",
+        "Použije sa na šírku; ak chýba obrázok na výšku, aj na výšku (orezaný podľa zarovnania)") {
+        ui.activity.pickBeamImage(land = true)
+    }
+    ChoiceRow("Zarovnanie pri orezaní", listOf(0f, 0.5f, 1f), s.beamAlign, { when (it) { 0f -> "Vľavo"; 0.5f -> "Stred"; else -> "Vpravo" } }) { v ->
+        edit { it.copy(beamAlign = v) }
     }
     Text("Farba lúča", Modifier.padding(horizontal = 18.dp, vertical = 4.dp))
     FlowRow(Modifier.padding(horizontal = 14.dp)) {

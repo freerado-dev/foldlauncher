@@ -298,7 +298,9 @@ object Store {
         put("clockApp", s.clockApp); put("weatherApp", s.weatherApp); put("showWeather", s.showWeather); put("showEvents", s.showEvents); put("folderSheet", s.folderSheet); put("feedEnabled", s.feedEnabled); put("launcherTheme", s.launcherTheme.name); put("ringStyle", s.ringStyle.name); put("ringColor", s.ringColor); put("wallStyle", s.wallStyle.name); put("wallColor", s.wallColor);
         put("beamColor", s.beamColor); put("beamDir", s.beamDir); put("beamPeriod", s.beamPeriod.toDouble())
         put("beamPhase", s.beamPhase.toDouble()); put("beamShift", s.beamShift.toDouble())
-        put("beamInterval", s.beamInterval.toDouble()); put("beamCount", s.beamCount); put("beamBands", s.beamBands); put("beamGapGlow", s.beamGapGlow); put("popupColor", s.popupColor); put("popupAlpha", s.popupAlpha.toDouble())
+        put("beamInterval", s.beamInterval.toDouble()); put("beamCount", s.beamCount); put("beamBands", s.beamBands); put("beamGapGlow", s.beamGapGlow);
+        put("beamLDir", s.beamLDir); put("beamLPeriod", s.beamLPeriod.toDouble()); put("beamLPhase", s.beamLPhase.toDouble())
+        put("beamLBands", s.beamLBands); put("beamAlign", s.beamAlign.toDouble()); put("popupColor", s.popupColor); put("popupAlpha", s.popupAlpha.toDouble())
         put("weatherCity", s.weatherCity); put("weatherF", s.weatherF); put("badgeSize", s.badgeSize.toDouble()); put("assistantKey", s.assistantKey)
         put("floatAssist", s.floatAssist); put("floatSize", s.floatSize.toDouble())
         put("floatCoverX", s.floatCoverX.toDouble()); put("floatCoverY", s.floatCoverY.toDouble())
@@ -378,6 +380,9 @@ object Store {
             beamShift = f("beamShift", d.beamShift), beamInterval = f("beamInterval", d.beamInterval),
             beamCount = o.optInt("beamCount", d.beamCount),
             beamBands = o.optString("beamBands", d.beamBands), beamGapGlow = o.optBoolean("beamGapGlow", d.beamGapGlow),
+            beamLDir = o.optInt("beamLDir", d.beamLDir), beamLPeriod = f("beamLPeriod", d.beamLPeriod),
+            beamLPhase = f("beamLPhase", d.beamLPhase), beamLBands = o.optString("beamLBands", d.beamLBands),
+            beamAlign = f("beamAlign", d.beamAlign),
             popupColor = o.optLong("popupColor", d.popupColor),
             popupAlpha = f("popupAlpha", d.popupAlpha),
             weatherCity = o.optString("weatherCity", ""),

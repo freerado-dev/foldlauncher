@@ -125,6 +125,13 @@ data class Settings(
     /** Tmavé zvislé 3D medzery v obrázku („od-do“ ako podiel šírky), ktoré lúč pri prechode jemne osvetlí. */
     val beamBands: String = "0.682-0.751,0.848-0.916",
     val beamGapGlow: Boolean = true,
+    /** Obrázok na šírku – vlastné drážky a medzery. */
+    val beamLDir: Int = 1,
+    val beamLPeriod: Float = 0.02f,
+    val beamLPhase: Float = 0f,
+    val beamLBands: String = "",
+    /** Zarovnanie obrázka pri orezaní: 0 = vľavo, 0.5 = stred, 1 = vpravo. */
+    val beamAlign: Float = 1f,
     /** Farba pozadia okien a panelov (priečinky, Váš program) – RGB a priehľadnosť. */
     val popupColor: Long = 0xFF1C1C20,
     val popupAlpha: Float = 0.95f,

@@ -88,6 +88,7 @@ class BeamWallpaper : WallpaperService() {
 
 object BeamImage {
     fun file(ctx: Context) = File(ctx.filesDir, "beam_bg.jpg")
+    fun fileLand(ctx: Context) = File(ctx.filesDir, "beam_bg_land.jpg")
 
     /**
      * Uloží vybraný obrázok a nájde v ňom šikmé drážky. Vráti (smer +1 = „/“ alebo -1 = „\\“, rozostup a posun
@@ -96,12 +97,13 @@ object BeamImage {
     /** Výsledok rozpoznania: drážky a tmavé zvislé medzery. */
     class Result(val dir: Int, val period: Float, val phase: Float, val bands: String)
 
-    fun importAndDetect(ctx: Context, uri: Uri): Result? = runCatching {
-        ctx.contentResolver.openInputStream(uri)?.use { inp -> file(ctx).outputStream().use { inp.copyTo(it) } }
+    fun importAndDetect(ctx: Context, uri: Uri, land: Boolean = false): Result? = runCatching {
+        val f = if (land) fileLand(ctx) else file(ctx)
+        ctx.contentResolver.openInputStream(uri)?.use { inp -> f.outputStream().use { inp.copyTo(it) } }
         val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(file(ctx).path, opts)
+        BitmapFactory.decodeFile(f.path, opts)
         val sample = max(1, opts.outWidth / 700)
-        val bmp = BitmapFactory.decodeFile(file(ctx).path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
+        val bmp = BitmapFactory.decodeFile(f.path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
         val r = detect(bmp)
         val bands = detectBands(bmp)
         bmp.recycle()
@@ -199,21 +201,19 @@ class BeamRenderer(private val ctx: Context) {
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
     private val bmpPaint = Paint(Paint.FILTER_BITMAP_FLAG)
     private var bmp: Bitmap? = null
-    private var bmpStamp = -1L
-    private var bmpFor = 0
+    private var bmpKey = ""
     private val src = Rect()
     private val dst = RectF()
 
     private fun alpha(c: Int, a: Float) = Color.argb((a.coerceIn(0f, 1f) * 255).toInt(), Color.red(c), Color.green(c), Color.blue(c))
     private fun hash(i: Int): Float { var x = i * 374761393 + 668265263; x = (x xor (x ushr 13)) * 1274126177; return ((x xor (x ushr 16)) and 0xFFFFFF) / 16777215f }
 
-    private fun ensureBitmap(w: Int, h: Int) {
-        val f = BeamImage.file(ctx)
-        val stamp = if (f.exists()) f.lastModified() else 0L
-        if (stamp == bmpStamp && bmpFor == max(w, h)) return
-        bmpStamp = stamp; bmpFor = max(w, h)
+    private fun ensureBitmap(f: File?, w: Int, h: Int) {
+        val key = if (f != null && f.exists()) "${f.path}|${f.lastModified()}|${max(w, h)}" else ""
+        if (key == bmpKey) return
+        bmpKey = key
         bmp?.recycle(); bmp = null
-        if (!f.exists()) return
+        if (f == null || !f.exists()) return
         val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(f.path, o)
         val need = max(w, h)
@@ -224,13 +224,21 @@ class BeamRenderer(private val ctx: Context) {
 
     fun draw(c: Canvas, w: Int, h: Int, t: Float) {
         val s = Store.settings.value
-        ensureBitmap(w, h)
+        // na šírku obrázok na šírku, na výšku obrázok na výšku (ak chýba, použije sa ten druhý)
+        val pf = BeamImage.file(ctx).takeIf { it.exists() }
+        val lf = BeamImage.fileLand(ctx).takeIf { it.exists() }
+        val useLand = if (w > h) lf != null else pf == null && lf != null
+        ensureBitmap(if (useLand) lf else pf, w, h)
+        val dirP = if (useLand) s.beamLDir else s.beamDir
+        val periodP = if (useLand) s.beamLPeriod else s.beamPeriod
+        val phaseP = if (useLand) s.beamLPhase else s.beamPhase
+        val bandsP = if (useLand) s.beamLBands else s.beamBands
         val b = bmp
-        // obrázok ako „center crop“
+        // orezanie s nastaviteľným zarovnaním (vpravo = tmavé medzery ostanú vidieť)
         var sc = 1f; var ox = 0f; var oy = 0f; var bw = w.toFloat()
         if (b != null) {
             sc = max(w / b.width.toFloat(), h / b.height.toFloat())
-            ox = (w - b.width * sc) / 2f; oy = (h - b.height * sc) / 2f
+            ox = (w - b.width * sc) * (1f - s.beamAlign.coerceIn(0f, 1f)); oy = (h - b.height * sc) / 2f
             bw = b.width.toFloat()
             src.set(0, 0, b.width, b.height)
             dst.set(ox, oy, ox + b.width * sc, oy + b.height * sc)
@@ -239,18 +247,18 @@ class BeamRenderer(private val ctx: Context) {
             c.drawColor(Color.rgb(28, 28, 30))
         }
         val col = s.beamColor.toInt()
-        val d = if (s.beamDir >= 0) 1 else -1
-        val periodS = s.beamPeriod * bw * sc
+        val d = if (dirP >= 0) 1 else -1
+        val periodS = periodP * bw * sc
         if (periodS < 3f) return
         // drážka k: x + d*y = C_k (v súradniciach obrazovky)
-        val base = sc * (s.beamPhase + s.beamShift * s.beamPeriod) * bw + ox + d * oy
+        val base = sc * (phaseP + s.beamShift * periodP) * bw + ox + d * oy
         val cMin = if (d > 0) 0f else -h.toFloat()
         val cMax = if (d > 0) (w + h).toFloat() else w.toFloat()
         val kMin = floor((cMin - base) / periodS).toInt()
         val kMax = floor((cMax - base) / periodS).toInt()
         if (kMax <= kMin) return
         // medzery v súradniciach obrazovky
-        val bands = s.beamBands.split(',').mapNotNull { part ->
+        val bands = bandsP.split(',').mapNotNull { part ->
             val ab = part.split('-')
             val a0 = ab.getOrNull(0)?.toFloatOrNull(); val a1 = ab.getOrNull(1)?.toFloatOrNull()
             if (a0 == null || a1 == null || a1 <= a0) null else Pair(ox + a0 * bw * sc, ox + a1 * bw * sc)
