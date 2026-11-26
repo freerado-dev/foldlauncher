@@ -321,6 +321,7 @@ fun SettingsScreen(ui: LauncherUi, screen: Screen, onClose: () -> Unit) {
             item {
                 Group {
                     ChoiceRow("Téma", LauncherTheme.entries, s.launcherTheme, { it.label }) { v -> edit { it.copy(launcherTheme = v) } }
+                    RingSettings(s)
                     Text(
                         if (s.holo) "Hologram: tmavomodré sklo, tyrkysové žiarenie a HUD panely. Na plochu si môžeš pridať animovaný Holo kruh (Pridať widget)."
                         else "Štandard: pôvodný vzhľad launchera.",
@@ -488,6 +489,44 @@ private fun openA11ySettings(act: android.app.Activity) {
         act.startActivity(Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS").putExtra(Intent.EXTRA_COMPONENT_NAME, cn))
     }.isSuccess
     if (!ok) sk.fold.launcher.data.SysActions.openAccessibility(act)
+}
+
+private val RING_COLORS: List<Long> = listOf(
+    0xFF3ED6FF, 0xFF5B8DEF, 0xFFBF5AF2, 0xFFFF375F, 0xFFFF9F0A,
+    0xFFFFD60A, 0xFF30D158, 0xFF64FFDA, 0xFFFFFFFF,
+)
+
+/** Holo kruh – štýl, náhľad a vlastná farba. */
+@Composable
+private fun RingSettings(s: Settings) {
+    var hex by remember { mutableStateOf(false) }
+    ChoiceRow("Štýl Holo kruhu", sk.fold.launcher.data.RingStyle.entries, s.ringStyle, { it.label }) { v -> edit { it.copy(ringStyle = v) } }
+    Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(84.dp).clip(CircleShape).background(Color(0xFF050B16))) { HoloRing(Modifier.fillMaxSize().padding(4.dp)) }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Farba Holo kruhu")
+            FlowRow {
+                RING_COLORS.forEach { c ->
+                    Box(
+                        Modifier.padding(3.dp).size(32.dp).clip(CircleShape).background(Color(c))
+                            .border(if (c == s.ringColor) 3.dp else 1.dp,
+                                if (c == s.ringColor) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline, CircleShape)
+                            .clickable { edit { it.copy(ringColor = c) } },
+                    )
+                }
+                Box(
+                    Modifier.padding(3.dp).size(32.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant).clickable { hex = true },
+                    contentAlignment = Alignment.Center,
+                ) { Text("#", fontWeight = FontWeight.Bold) }
+            }
+        }
+    }
+    if (hex) TextDialog("Vlastná farba kruhu (HEX)", "#%06X".format(s.ringColor and 0xFFFFFF), "Napr. #FF6A00", onDismiss = { hex = false }) { v ->
+        val c = v.removePrefix("#").toLongOrNull(16)
+        if (c != null && v.removePrefix("#").length == 6) edit { it.copy(ringColor = 0xFF000000 or c) }
+        hex = false
+    }
 }
 
 private val POPUP_COLORS: List<Long> = listOf(
