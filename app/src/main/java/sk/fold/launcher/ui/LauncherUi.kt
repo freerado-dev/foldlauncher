@@ -130,6 +130,8 @@ class LauncherUi(val activity: MainActivity) {
             sheet != null -> sheet = null
             drawerOpen -> closeDrawer()
             editMode -> stopEdit()
+            // Gesto späť na inej stránke alebo vo feede vráti na hlavnú stránku.
+            else -> homeSignal++
         }
     }
 
