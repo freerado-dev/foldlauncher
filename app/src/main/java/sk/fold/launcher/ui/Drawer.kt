@@ -412,15 +412,19 @@ private fun AlphabetBar(letters: List<String>, modifier: Modifier, onActive: (St
         val fs = with(density) { (slot * 0.78f).coerceAtMost(15.dp).toSp() }
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
             letters.forEachIndexed { i, l ->
-                val f = if (active < 0) 0f else (1f - abs(i - active) / 4f).coerceIn(0f, 1f)
+                // Väčší oblúk okolo prsta: písmená sa odsunú doľava po kruhovej krivke, aby ich prst nezakrýval.
+                val dist = if (active < 0) 99f else abs(i - active).toFloat()
+                val spread = 6.5f
+                val arc = if (dist >= spread) 0f else kotlin.math.sqrt(1f - (dist / spread) * (dist / spread))
+                val f = arc
                 Text(
                     l, fontSize = fs, lineHeight = fs, maxLines = 1, fontWeight = if (i == active) FontWeight.Bold else FontWeight.Medium,
                     color = if (i == active) accent else normal,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.height(slot).wrapContentHeight().graphicsLayer {
-                        scaleX = 1f + f * 1.1f
-                        scaleY = 1f + f * 1.1f
-                        translationX = -f * with(density) { 34.dp.toPx() }
+                        scaleX = 1f + f * 1.25f
+                        scaleY = 1f + f * 1.25f
+                        translationX = -f * with(density) { 104.dp.toPx() }
                     },
                 )
             }
