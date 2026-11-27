@@ -287,16 +287,24 @@ fun AppDrawer(ui: LauncherUi, s: Settings) {
                     }
                 }
                 if (showBar) {
+                    var leftActive by remember { mutableIntStateOf(-1) }
+                    val jump: (String) -> Unit = { l ->
+                        val idx = visible.indexOfFirst { it.letter == l }
+                        val header = if (s.showRecent && recentApps.isNotEmpty()) 1 else 0
+                        if (idx >= 0) scope.launch { grid.scrollToItem(idx + header) }
+                    }
                     AlphabetBar(
                         letters = letters,
                         modifier = Modifier.align(Alignment.CenterEnd),
+                        extActive = leftActive,
                         onActive = { },
-                        onPick = { l ->
-                            val idx = visible.indexOfFirst { it.letter == l }
-                            val header = if (s.showRecent && recentApps.isNotEmpty()) 1 else 0
-                            if (idx >= 0) scope.launch { grid.scrollToItem(idx + header) }
-                        },
+                        onPick = jump,
                     )
+                    // neviditeľný pás na ľavom okraji – rovnaké ovládanie abecedy ľavou rukou
+                    LeftScrubStrip(letters, Modifier.align(Alignment.CenterStart), onIndex = { i ->
+                        leftActive = i
+                        if (i >= 0) jump(letters[i])
+                    })
                 }
 
             }
@@ -363,8 +371,43 @@ private fun DrawerEntry(ui: LauncherUi, e: Entry, s: Settings, list: Boolean, le
 
 /** Abecedný posuvník s „vlnou“ písmen ako v Niagare. */
 @Composable
-private fun AlphabetBar(letters: List<String>, modifier: Modifier, onActive: (String?) -> Unit, onPick: (String) -> Unit) {
-    var active by remember { mutableIntStateOf(-1) }
+private fun LeftScrubStrip(letters: List<String>, modifier: Modifier, onIndex: (Int) -> Unit) {
+    val haptic = LocalHapticFeedback.current
+    val cb by rememberUpdatedState(onIndex)
+    Box(
+        modifier.fillMaxHeight().width(30.dp).padding(vertical = 8.dp)
+            .pointerInput(letters) {
+                awaitEachGesture {
+                    var cur = -1
+                    fun choose(y: Float) {
+                        val i = (y / size.height * letters.size).toInt().coerceIn(0, letters.size - 1)
+                        if (i != cur) {
+                            cur = i
+                            buzz(haptic, HapticFeedbackType.TextHandleMove)
+                            cb(i)
+                        }
+                    }
+                    val down = awaitFirstDown()
+                    down.consume()
+                    choose(down.position.y)
+                    while (true) {
+                        val ev = awaitPointerEvent()
+                        val c = ev.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!c.pressed) break
+                        c.consume()
+                        choose(c.position.y)
+                    }
+                    cb(-1)
+                }
+            },
+    )
+}
+
+@Composable
+private fun AlphabetBar(letters: List<String>, modifier: Modifier, extActive: Int = -1, onActive: (String?) -> Unit, onPick: (String) -> Unit) {
+    var own by remember { mutableIntStateOf(-1) }
+    // aktívne písmeno môže prísť aj z ľavého pásu (ovládanie ľavou rukou)
+    val active = if (own >= 0) own else extActive
     val haptic = LocalHapticFeedback.current
     val pick by rememberUpdatedState(onPick)
     val act by rememberUpdatedState(onActive)
@@ -377,8 +420,8 @@ private fun AlphabetBar(letters: List<String>, modifier: Modifier, onActive: (St
                 awaitEachGesture {
                     fun choose(y: Float) {
                         val i = (y / size.height * letters.size).toInt().coerceIn(0, letters.size - 1)
-                        if (i != active) {
-                            active = i
+                        if (i != own) {
+                            own = i
                             buzz(haptic, HapticFeedbackType.TextHandleMove)
                             pick(letters[i]); act(letters[i])
                         }
@@ -393,7 +436,7 @@ private fun AlphabetBar(letters: List<String>, modifier: Modifier, onActive: (St
                         c.consume()
                         choose(c.position.y)
                     }
-                    active = -1
+                    own = -1
                     act(null)
                 }
             },
