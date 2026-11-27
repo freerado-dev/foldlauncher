@@ -430,6 +430,5 @@ private fun AlphabetBar(letters: List<String>, modifier: Modifier, onActive: (St
             }
         }
         }
-        }
     }
 }
