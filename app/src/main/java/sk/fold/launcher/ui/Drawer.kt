@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -136,7 +137,6 @@ fun AppDrawer(ui: LauncherUi, s: Settings) {
         }
     }
     val letters = remember(visible) { visible.map { it.letter }.distinct() }
-    var bubble by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(ui.searchFocus, s.autoKeyboard, ui.drawerOpen) {
         if (ui.drawerOpen && (ui.searchFocus || s.autoKeyboard)) runCatching { focus.requestFocus() }
@@ -290,7 +290,7 @@ fun AppDrawer(ui: LauncherUi, s: Settings) {
                     AlphabetBar(
                         letters = letters,
                         modifier = Modifier.align(Alignment.CenterEnd),
-                        onActive = { bubble = it },
+                        onActive = { },
                         onPick = { l ->
                             val idx = visible.indexOfFirst { it.letter == l }
                             val header = if (s.showRecent && recentApps.isNotEmpty()) 1 else 0
@@ -298,15 +298,7 @@ fun AppDrawer(ui: LauncherUi, s: Settings) {
                         },
                     )
                 }
-                bubble?.let { b ->
-                    Box(
-                        Modifier.align(Alignment.Center).size(96.dp).clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(b, fontSize = 48.sp, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
-                    }
-                }
+
             }
         }
     }
@@ -412,22 +404,31 @@ private fun AlphabetBar(letters: List<String>, modifier: Modifier, onActive: (St
         val fs = with(density) { (slot * 0.78f).coerceAtMost(15.dp).toSp() }
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
             letters.forEachIndexed { i, l ->
-                // Väčší oblúk okolo prsta: písmená sa odsunú doľava po kruhovej krivke, aby ich prst nezakrýval.
+                // Ako Niagara: celá abeceda sa prehne do dlhého plynulého oblúka (Gaussova krivka), písmená sa nezväčšujú.
                 val dist = if (active < 0) 99f else abs(i - active).toFloat()
-                val spread = 6.5f
-                val arc = if (dist >= spread) 0f else kotlin.math.sqrt(1f - (dist / spread) * (dist / spread))
-                val f = arc
+                val f = if (active < 0) 0f else kotlin.math.exp(-(dist / 6f) * (dist / 6f))
                 Text(
                     l, fontSize = fs, lineHeight = fs, maxLines = 1, fontWeight = if (i == active) FontWeight.Bold else FontWeight.Medium,
                     color = if (i == active) accent else normal,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.height(slot).wrapContentHeight().graphicsLayer {
-                        scaleX = 1f + f * 1.25f
-                        scaleY = 1f + f * 1.25f
-                        translationX = -f * with(density) { 104.dp.toPx() }
+                        translationX = -f * with(density) { 84.dp.toPx() }
                     },
                 )
             }
+        }
+        // malá bublina s aktuálnym písmenom hneď vedľa oblúka
+        if (active in letters.indices) {
+            val bub = 40.dp
+            Box(
+                Modifier
+                    .offset(x = -(84.dp + bub + 6.dp), y = slot * active + slot / 2 - bub / 2)
+                    .size(bub).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(letters[active], color = MaterialTheme.colorScheme.onPrimaryContainer, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+            }
+        }
         }
         }
     }
